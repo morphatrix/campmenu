@@ -1,0 +1,24 @@
+# PostgreSQL via CloudNativePG. The operator creates a secret named
+# "campmenu-db-app" exposing username/password/dbname and a "uri" key that the
+# backend consumes directly as its DSN.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: campmenu-db
+  namespace: campmenu
+spec:
+  instances: 1
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
+  storage:
+    size: 5Gi
+    storageClass: freenas-nfs-csi
+  bootstrap:
+    initdb:
+      database: campmenu
+      owner: campmenu
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi

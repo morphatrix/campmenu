@@ -1,0 +1,94 @@
+# Frontend runs entirely from OFFICIAL images — no custom image to build/push.
+# initContainers clone the repo and run the Vite build into a shared volume,
+# injecting the runtime API URL; the official nginx image then serves it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: campmenu-frontend
+  namespace: campmenu
+  labels: { app: campmenu-frontend }
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: campmenu-frontend }
+  template:
+    metadata:
+      labels: { app: campmenu-frontend }
+    spec:
+      volumes:
+        - name: src
+          emptyDir: {}
+        - name: html
+          emptyDir: {}
+        - name: nginx-conf
+          configMap:
+            name: campmenu-nginx
+      initContainers:
+        # 1. Clone the source.
+        - name: clone
+          image: alpine:3.20
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              apk add --no-cache git
+              rm -rf /workspace/repo
+              if [ -n "$GIT_TOKEN" ]; then
+                AUTH=$(printf '%s:%s' "$GIT_USERNAME" "$GIT_TOKEN" | base64 | tr -d '\n')
+                git -c http.extraHeader="Authorization: Basic $AUTH" \
+                  clone --depth 1 --branch "$REPO_REF" "$REPO_URL" /workspace/repo
+              else
+                git clone --depth 1 --branch "$REPO_REF" "$REPO_URL" /workspace/repo
+              fi
+          envFrom:
+            - configMapRef: { name: campmenu-config }
+            - secretRef: { name: campmenu-secrets }
+          volumeMounts:
+            - { name: src, mountPath: /workspace }
+        # 2. Build the SPA and inject the runtime API URL.
+        - name: build
+          image: node:20-alpine
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              cd "/workspace/repo${APP_SUBDIR:+/$APP_SUBDIR}/frontend"
+              npm install
+              npm run build
+              cp -r dist/. /html/
+              sed -i "s|__API_URL__|${API_URL}|g" /html/index.html
+          envFrom:
+            - configMapRef: { name: campmenu-config }
+          volumeMounts:
+            - { name: src, mountPath: /workspace }
+            - { name: html, mountPath: /html }
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine # official image serving the prebuilt SPA
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - { name: html, mountPath: /usr/share/nginx/html }
+            - { name: nginx-conf, mountPath: /etc/nginx/conf.d/default.conf, subPath: default.conf }
+          readinessProbe:
+            httpGet: { path: /, port: 8080 }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: campmenu-frontend
+  namespace: campmenu
+spec:
+  selector: { app: campmenu-frontend }
+  ports:
+    - port: 80
+      targetPort: 8080

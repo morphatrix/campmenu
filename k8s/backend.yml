@@ -1,0 +1,115 @@
+# Backend runs entirely from OFFICIAL images — no custom image to build/push.
+# initContainers clone the repo and compile the Go binary into a shared volume;
+# the main container (official golang image, ships CA certs) just runs it.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: campmenu-backend
+  namespace: campmenu
+  labels: { app: campmenu-backend }
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: campmenu-backend }
+  template:
+    metadata:
+      labels: { app: campmenu-backend }
+    spec:
+      volumes:
+        - name: src
+          emptyDir: {}
+        - name: app
+          emptyDir: {}
+        - name: gocache
+          emptyDir: {}
+      initContainers:
+        # 1. Clone the source.
+        - name: clone
+          image: alpine:3.20
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              apk add --no-cache git
+              rm -rf /workspace/repo
+              if [ -n "$GIT_TOKEN" ]; then
+                AUTH=$(printf '%s:%s' "$GIT_USERNAME" "$GIT_TOKEN" | base64 | tr -d '\n')
+                git -c http.extraHeader="Authorization: Basic $AUTH" \
+                  clone --depth 1 --branch "$REPO_REF" "$REPO_URL" /workspace/repo
+              else
+                git clone --depth 1 --branch "$REPO_REF" "$REPO_URL" /workspace/repo
+              fi
+          envFrom:
+            - configMapRef: { name: campmenu-config }
+            - secretRef: { name: campmenu-secrets }
+          volumeMounts:
+            - { name: src, mountPath: /workspace }
+        # 2. Wait for PostgreSQL.
+        - name: wait-for-db
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - "until nc -z campmenu-db-rw 5432; do echo waiting for db; sleep 2; done"
+        # 3. Compile the static binary.
+        - name: build
+          image: golang:1.23-alpine
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              apk add --no-cache git
+              cd "/workspace/repo${APP_SUBDIR:+/$APP_SUBDIR}/backend"
+              go mod tidy
+              CGO_ENABLED=0 go build -ldflags="-s -w" -o /app/campmenu ./cmd/server
+          envFrom:
+            - configMapRef: { name: campmenu-config } # provides APP_SUBDIR
+          env:
+            - { name: GOCACHE, value: /gocache }
+          volumeMounts:
+            - { name: src, mountPath: /workspace }
+            - { name: app, mountPath: /app }
+            - { name: gocache, mountPath: /gocache }
+      containers:
+        - name: backend
+          image: golang:1.23-alpine # official image, only used to run the prebuilt binary
+          command: ["/app/campmenu"]
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef: { name: campmenu-config }
+            - secretRef: { name: campmenu-secrets }
+          env:
+            - name: DATABASE_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: campmenu-db-app
+                  key: uri
+          volumeMounts:
+            - { name: app, mountPath: /app }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: campmenu-backend
+  namespace: campmenu
+spec:
+  selector: { app: campmenu-backend }
+  ports:
+    - port: 8080
+      targetPort: 8080

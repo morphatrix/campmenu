@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Theming model
+  -------------
+  - light/dark/auto  -> `.dark` class on <html> (auto follows prefers-color-scheme)
+  - 4 palettes       -> [data-palette="default|sunset|forest|ocean"] sets --brand/--accent
+  - colorblind mode  -> [data-colorblind="true"] swaps to a WCAG-safe high-contrast set
+  Every value is "R G B" so Tailwind's rgb(var(--x) / <alpha>) opacity utilities work.
+*/
+
+:root {
+  --surface: 248 250 252;
+  --card: 255 255 255;
+  --border: 226 232 240;
+  --muted: 100 116 139;
+  --fg: 15 23 42;
+  --brand: 79 70 229;
+  --brand-fg: 255 255 255;
+  --accent: 236 72 153;
+  --success: 22 163 74;
+  --danger: 220 38 38;
+}
+
+.dark {
+  --surface: 2 6 23;
+  --card: 15 23 42;
+  --border: 30 41 59;
+  --muted: 148 163 184;
+  --fg: 226 232 240;
+  --brand-fg: 255 255 255;
+}
+
+/* ── Palettes ───────────────────────────────────────────────────────────── */
+[data-palette='sunset'] {
+  --brand: 234 88 12;
+  --accent: 219 39 119;
+}
+[data-palette='forest'] {
+  --brand: 21 128 61;
+  --accent: 13 148 136;
+}
+[data-palette='ocean'] {
+  --brand: 2 132 199;
+  --accent: 99 102 241;
+}
+
+/* ── Colorblind-safe (WCAG AA, Okabe-Ito derived) ───────────────────────── */
+[data-colorblind='true'] {
+  --brand: 0 114 178;   /* blue */
+  --accent: 204 121 167; /* reddish purple */
+  --success: 0 158 115;  /* bluish green */
+  --danger: 213 94 0;    /* vermillion */
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-surface text-fg antialiased;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-brand/50 disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-brand-fg hover:opacity-90;
+  }
+  .btn-ghost {
+    @apply btn border border-border bg-card hover:bg-surface;
+  }
+  .btn-danger {
+    @apply btn bg-danger text-white hover:opacity-90;
+  }
+  .card {
+    @apply rounded-xl border border-border bg-card shadow-sm;
+  }
+  .input {
+    @apply w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-fg placeholder:text-muted focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-fg;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-0.5 text-xs font-medium;
+  }
+}

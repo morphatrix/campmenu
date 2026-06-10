@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: campmenu-config
+  namespace: campmenu
+data:
+  PORT: "8080"
+  LOG_LEVEL: "info"
+  # Public URL of the frontend (used in invite/confirmation links + CORS).
+  APP_URL: "https://campmenu.example.com"
+  CORS_ORIGINS: "https://campmenu.example.com"
+  # Set false to skip email confirmation (handy without an SMTP server).
+  EMAIL_CONFIRM_REQUIRED: "false"
+  SITE_NAME: "CampMenu"
+  DEFAULT_THEME: "auto"        # light | dark | auto
+  DEFAULT_PALETTE: "default"   # default | sunset | forest | ocean
+  # Browser-facing API ORIGIN injected into the frontend at pod start. Leave
+  # EMPTY when frontend + backend share one ingress host (same-origin /api).
+  # Set to "https://api.example.com" only for a separate backend origin.
+  # Do NOT include the /api suffix — the client adds it.
+  API_URL: ""
+
+  # Git source cloned & built at pod startup by the initContainers (no custom
+  # image to build/push). Point this at YOUR fork of this repository.
+  REPO_URL: "https://github.com/morphatrix/campmenu.git"
+  REPO_REF: "main"
+  # Path to the app inside the repo. Empty = repo root (this layout).
+  APP_SUBDIR: ""
+  # Disable TLS verification for the clone (e.g. a self-signed internal Git).
+  # Keep "false" for public hosts such as GitHub.
+  GIT_SSL_NO_VERIFY: "false"

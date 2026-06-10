@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-campmenu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-campmenu}
+      POSTGRES_DB: ${POSTGRES_DB:-campmenu}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-campmenu}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: "8080"
+      DATABASE_DSN: "host=db user=${POSTGRES_USER:-campmenu} password=${POSTGRES_PASSWORD:-campmenu} dbname=${POSTGRES_DB:-campmenu} port=5432 sslmode=disable TimeZone=UTC"
+      APP_URL: ${APP_URL:-http://localhost:5173}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      JWT_SECRET: ${JWT_SECRET:-change-me-please-32-chars-min}
+      EMAIL_CONFIRM_REQUIRED: ${EMAIL_CONFIRM_REQUIRED:-false}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-changeme-strong-password}
+      SITE_NAME: ${SITE_NAME:-CampMenu}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-no-reply@campmenu.local}
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      API_URL: ${VITE_API_URL:-http://localhost:8080}
+    ports:
+      - "5173:8080"
+
+volumes:
+  pgdata:

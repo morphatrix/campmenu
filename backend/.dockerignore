@@ -1,0 +1,7 @@
+Dockerfile
+.dockerignore
+*.md
+bin/
+campmenu
+*.test
+.env

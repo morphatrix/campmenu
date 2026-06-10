@@ -1,0 +1,315 @@
+import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { BedDouble, Bath, Euro, MapPin, ExternalLink, Pencil, Plus, Trash2, Trophy, Phone } from 'lucide-react'
+import { api, resolveAsset } from '../../lib/api'
+import { useLive } from '../../context/LiveContext'
+import { useAuth } from '../../context/AuthContext'
+import Modal from '../Modal'
+import ImageUpload from '../ImageUpload'
+import type { Event, Location, LocationsResponse } from '../../lib/types'
+
+const AMENITIES = [
+  'Machine à laver', 'Lave-vaisselle', 'Barbecue', 'Voiture de prêt', 'Wifi',
+  'Cheminée', 'Jacuzzi', 'Parking', 'Animaux acceptés', 'Télévision', 'Terrasse', 'Vue montagne',
+]
+
+function mapsHref(loc: Location): string {
+  if (loc.mapsUrl) return loc.mapsUrl
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.address || loc.title)}`
+}
+
+export default function LocationsTab({ event, isAdmin, effectiveParticipants }: { event: Event; isAdmin: boolean; effectiveParticipants: number }) {
+  const { t } = useTranslation()
+  const { user } = useAuth()
+  const [data, setData] = useState<LocationsResponse | null>(null)
+  const [editing, setEditing] = useState<Location | null>(null)
+  const [creating, setCreating] = useState(false)
+
+  async function load() {
+    setData(await api.get<LocationsResponse>(`/events/${event.id}/locations`))
+  }
+  useEffect(() => { load() }, [event.id])
+  useLive(load)
+
+  if (!data) return <p className="text-muted">{t('common.loading')}</p>
+
+  const weights = data.voteWeights
+  const locations = [...data.locations].sort((a, b) => Number(b.isWinner) - Number(a.isWinner) || b.score - a.score)
+
+  function rankOf(locId: string): number | null {
+    const entry = Object.entries(data!.myVotes).find(([, id]) => id === locId)
+    return entry ? +entry[0] : null
+  }
+
+  async function applyVote(locId: string, rank: number | null) {
+    const mv: Record<string, string> = { ...data!.myVotes }
+    for (const k of Object.keys(mv)) if (mv[k] === locId) delete mv[k]
+    if (rank) mv[String(rank)] = locId
+    setData({ ...data!, myVotes: mv })
+    const votes = Object.entries(mv).map(([r, id]) => ({ rank: +r, locationId: id }))
+    await api.put(`/events/${event.id}/votes`, { votes })
+    load()
+  }
+
+  async function promote(loc: Location) {
+    await api.post(`/locations/${loc.id}/promote`)
+    load()
+  }
+  async function remove(loc: Location) {
+    if (!confirm(`${t('common.delete')} « ${loc.title} » ?`)) return
+    await api.del(`/locations/${loc.id}`)
+    load()
+  }
+
+  return (
+    <div>
+      <div className="mb-4 flex items-center justify-between">
+        <p className="text-sm text-muted">{t('locations.score')} = Σ poids ({weights.join(' / ')})</p>
+        <button className="btn-primary" onClick={() => setCreating(true)}><Plus size={16} /> {t('locations.add')}</button>
+      </div>
+
+      {locations.length === 0 ? (
+        <p className="text-muted">{t('locations.empty')}</p>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {locations.map((loc) => {
+            const canManage = isAdmin || loc.createdBy === user?.id
+            const myRank = rankOf(loc.id)
+            return (
+              <div key={loc.id} className={`card overflow-hidden ${loc.isWinner ? 'ring-2 ring-success' : ''}`}>
+                {loc.images.length > 0 && (
+                  <div className="flex gap-1 overflow-x-auto">
+                    {loc.images.map((img, i) => (
+                      <img key={i} src={resolveAsset(img)} alt="" className="h-36 w-56 shrink-0 object-cover" />
+                    ))}
+                  </div>
+                )}
+                <div className="p-4">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <h3 className="text-lg font-semibold">
+                      {loc.isWinner && <Trophy size={16} className="mr-1 inline text-success" />}
+                      {loc.title}
+                    </h3>
+                    <span className="chip text-brand">{loc.score} pts</span>
+                  </div>
+
+                  {loc.address && (
+                    <a href={mapsHref(loc)} target="_blank" rel="noreferrer" className="mb-2 inline-flex items-center gap-1 text-sm text-brand hover:underline">
+                      <MapPin size={14} /> {loc.address} <ExternalLink size={11} />
+                    </a>
+                  )}
+
+                  <div className="mb-2 flex flex-wrap gap-3 text-sm text-muted">
+                    {loc.beds > 0 && <span className="inline-flex items-center gap-1"><BedDouble size={14} /> {loc.beds}</span>}
+                    {(loc.singleBeds > 0 || loc.doubleBeds > 0) && <span>{loc.singleBeds} simple / {loc.doubleBeds} double</span>}
+                    {loc.toilets > 0 && <span className="inline-flex items-center gap-1"><Bath size={14} /> {loc.toilets}</span>}
+                    {loc.phone && <span className="inline-flex items-center gap-1"><Phone size={14} /> {loc.phone}</span>}
+                  </div>
+
+                  {loc.price > 0 && (
+                    <div className="mb-2 inline-flex items-center gap-2 rounded-lg bg-surface px-2 py-1 text-sm">
+                      <Euro size={14} className="text-brand" />
+                      <span className="font-semibold">{loc.price} €</span>
+                      {effectiveParticipants > 0 && (
+                        <span className="text-muted">· {Math.round((loc.price / effectiveParticipants) * 100) / 100} €{t('locations.perPerson')}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {loc.amenities.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-1">
+                      {loc.amenities.map((a) => <span key={a} className="chip">{a}</span>)}
+                    </div>
+                  )}
+
+                  {loc.description && <p className="mb-2 whitespace-pre-wrap text-sm">{loc.description}</p>}
+                  {loc.usefulInfo && <p className="mb-2 text-sm text-muted">{loc.usefulInfo}</p>}
+
+                  <div className="flex flex-wrap items-center gap-3 border-t border-border pt-3">
+                    {loc.websiteUrl && (
+                      <a href={loc.websiteUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-brand hover:underline">
+                        <ExternalLink size={13} /> {t('locations.website')}
+                      </a>
+                    )}
+                    <label className="ml-auto inline-flex items-center gap-1 text-sm">
+                      {t('locations.myVote')}:
+                      <select
+                        className="input h-8 w-28 py-1"
+                        value={myRank ?? ''}
+                        onChange={(e) => applyVote(loc.id, e.target.value ? +e.target.value : null)}
+                      >
+                        <option value="">{t('locations.noVote')}</option>
+                        {weights.map((wgt, i) => (
+                          <option key={i} value={i + 1}>{i + 1} (×{wgt})</option>
+                        ))}
+                      </select>
+                    </label>
+                    {canManage && (
+                      <>
+                        <button className="btn-ghost" onClick={() => setEditing(loc)}><Pencil size={14} /></button>
+                        <button className="btn-ghost text-danger" onClick={() => remove(loc)}><Trash2 size={14} /></button>
+                      </>
+                    )}
+                    {isAdmin && !loc.isWinner && (
+                      <button className="btn-ghost text-success" onClick={() => promote(loc)}><Trophy size={14} /> {t('locations.promote')}</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {(creating || editing) && (
+        <LocationForm
+          eventId={event.id}
+          initial={editing}
+          showVenueInfo={isAdmin}
+          onClose={() => { setCreating(false); setEditing(null) }}
+          onSaved={() => { setCreating(false); setEditing(null); load() }}
+        />
+      )}
+    </div>
+  )
+}
+
+function LocationForm({
+  eventId, initial, showVenueInfo, onClose, onSaved,
+}: {
+  eventId: string; initial: Location | null; showVenueInfo: boolean; onClose: () => void; onSaved: () => void
+}) {
+  const { t } = useTranslation()
+  const [f, setF] = useState(() => ({
+    title: initial?.title ?? '',
+    address: initial?.address ?? '',
+    websiteUrl: initial?.websiteUrl ?? '',
+    mapsUrl: initial?.mapsUrl ?? '',
+    beds: initial?.beds ?? 0,
+    singleBeds: initial?.singleBeds ?? 0,
+    doubleBeds: initial?.doubleBeds ?? 0,
+    toilets: initial?.toilets ?? 0,
+    price: initial?.price ?? 0,
+    phone: initial?.phone ?? '',
+    usefulInfo: initial?.usefulInfo ?? '',
+    description: initial?.description ?? '',
+  }))
+  const [amenities, setAmenities] = useState<string[]>(initial?.amenities ?? [])
+  const [images, setImages] = useState<string[]>(initial?.images?.length ? initial.images : [''])
+  const [customAmenity, setCustomAmenity] = useState('')
+
+  function set<K extends keyof typeof f>(k: K, v: (typeof f)[K]) { setF((s) => ({ ...s, [k]: v })) }
+  function toggleAmenity(a: string) {
+    setAmenities((s) => (s.includes(a) ? s.filter((x) => x !== a) : [...s, a]))
+  }
+  function setImage(i: number, url: string) { setImages((s) => s.map((u, idx) => (idx === i ? url : u))) }
+
+  async function save() {
+    if (!f.title.trim()) return
+    const body = { ...f, amenities, images: images.filter((u) => u.trim()) }
+    if (initial) await api.patch(`/locations/${initial.id}`, body)
+    else await api.post(`/events/${eventId}/locations`, body)
+    onSaved()
+  }
+
+  const num = (k: 'beds' | 'singleBeds' | 'doubleBeds' | 'toilets', label: string) => (
+    <div>
+      <label className="label">{label}</label>
+      <input className="input" type="number" min={0} value={f[k] || ''} onChange={(e) => set(k, +e.target.value)} />
+    </div>
+  )
+
+  return (
+    <Modal title={initial ? t('locations.edit') : t('locations.add')} onClose={onClose} wide>
+      <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label">{t('locations.intitule')}</label>
+            <input className="input" value={f.title} onChange={(e) => set('title', e.target.value)} required />
+          </div>
+          <div>
+            <label className="label">{t('locations.address')}</label>
+            <input className="input" value={f.address} onChange={(e) => set('address', e.target.value)} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {num('beds', t('locations.beds'))}
+          {num('singleBeds', t('locations.singleBeds'))}
+          {num('doubleBeds', t('locations.doubleBeds'))}
+          {num('toilets', t('locations.toilets'))}
+        </div>
+        <div className="sm:w-1/2">
+          <label className="label">{t('locations.price')}</label>
+          <input className="input" type="number" min={0} step="0.01" value={f.price || ''} onChange={(e) => set('price', +e.target.value)} />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label">{t('locations.website')}</label>
+            <input className="input" value={f.websiteUrl} onChange={(e) => set('websiteUrl', e.target.value)} placeholder="https://…" />
+          </div>
+          <div>
+            <label className="label">{t('locations.maps')} (URL)</label>
+            <input className="input" value={f.mapsUrl} onChange={(e) => set('mapsUrl', e.target.value)} placeholder="https://maps…" />
+          </div>
+        </div>
+
+        <div>
+          <label className="label">{t('locations.amenities')}</label>
+          <div className="flex flex-wrap gap-2">
+            {[...AMENITIES, ...amenities.filter((a) => !AMENITIES.includes(a))].map((a) => (
+              <label key={a} className={`chip cursor-pointer ${amenities.includes(a) ? 'bg-brand text-brand-fg' : ''}`}>
+                <input type="checkbox" className="hidden" checked={amenities.includes(a)} onChange={() => toggleAmenity(a)} />
+                {a}
+              </label>
+            ))}
+          </div>
+          <div className="mt-2 flex gap-2">
+            <input className="input w-48" placeholder={t('locations.addCustomAmenity')} value={customAmenity} onChange={(e) => setCustomAmenity(e.target.value)} />
+            <button type="button" className="btn-ghost" onClick={() => { if (customAmenity.trim()) { toggleAmenity(customAmenity.trim()); setCustomAmenity('') } }}>
+              <Plus size={15} />
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="label">{t('locations.images')}</label>
+          <div className="space-y-2">
+            {images.map((img, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <div className="flex-1"><ImageUpload value={img} onChange={(u) => setImage(i, u)} /></div>
+                <button type="button" className="btn-ghost" onClick={() => setImages((s) => (s.length > 1 ? s.filter((_, idx) => idx !== i) : ['']))}><Trash2 size={15} /></button>
+              </div>
+            ))}
+          </div>
+          <button type="button" className="btn-ghost mt-2" onClick={() => setImages((s) => [...s, ''])}><Plus size={15} /> {t('locations.addImage')}</button>
+        </div>
+
+        <div>
+          <label className="label">{t('locations.description')}</label>
+          <textarea className="input min-h-24" value={f.description} onChange={(e) => set('description', e.target.value)} />
+        </div>
+
+        {showVenueInfo && (
+          <div className="grid gap-4 rounded-lg border border-border p-3 sm:grid-cols-2">
+            <p className="text-xs font-semibold uppercase text-muted sm:col-span-2">{t('locations.venueInfo')}</p>
+            <div>
+              <label className="label">{t('locations.phone')}</label>
+              <input className="input" value={f.phone} onChange={(e) => set('phone', e.target.value)} />
+            </div>
+            <div>
+              <label className="label">{t('locations.usefulInfo')}</label>
+              <input className="input" value={f.usefulInfo} onChange={(e) => set('usefulInfo', e.target.value)} />
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <button className="btn-ghost" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="btn-primary" onClick={save}>{t('common.save')}</button>
+        </div>
+      </div>
+    </Modal>
+  )
+}

@@ -1,0 +1,41 @@
+# Single host: frontend at "/" and backend API at "/api" (and auth/health
+# subpaths it owns). ingress-nginx routes /api to the Go service so the browser
+# uses one origin (simplifies cookies + CORS).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: campmenu
+  namespace: campmenu
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # Let Server-Sent Events (/api/stream) stream without buffering/timeout.
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: campmenu.example.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: campmenu-backend
+                port:
+                  number: 8080
+          - path: /healthz
+            pathType: Prefix
+            backend:
+              service:
+                name: campmenu-backend
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: campmenu-frontend
+                port:
+                  number: 80
