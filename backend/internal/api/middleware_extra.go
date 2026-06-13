@@ -26,6 +26,18 @@ func requestLogger(next http.Handler) http.Handler {
 	})
 }
 
+// isLocalhostOrigin reports whether origin is a localhost address (any port).
+// A remote page cannot forge Origin: localhost, so allowing it is safe even in
+// production while keeping local development friction-free.
+func isLocalhostOrigin(origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	h := u.Hostname()
+	return h == "localhost" || h == "127.0.0.1" || h == "::1"
+}
+
 // originGuard is a lightweight CSRF defense: unsafe cross-origin requests must
 // carry an Origin header that matches the configured allow-list. Browsers set
 // Origin automatically and cannot forge it, while same-origin and non-browser
@@ -37,13 +49,17 @@ func (s *Server) originGuard(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		origin := r.Header.Get("Origin")
+		if origin == "" || isLocalhostOrigin(origin) {
+			next.ServeHTTP(w, r)
+			return
+		}
 		// Allow-list read live from the settings store (editable in admin UI).
 		allowed := map[string]bool{}
 		for _, o := range s.Settings.AllowedOrigins() {
 			allowed[o] = true
 		}
-		origin := r.Header.Get("Origin")
-		if origin == "" || allowed[origin] {
+		if allowed[origin] {
 			next.ServeHTTP(w, r)
 			return
 		}

@@ -53,6 +53,11 @@ func bootstrapAdmin(db *gorm.DB, cfg *config.Config) {
 	if email == "" || pass == "" {
 		return
 	}
+	// First name of the bootstrap admin (overridable); defaults to "Admin".
+	name := strings.TrimSpace(os.Getenv("BOOTSTRAP_ADMIN_NAME"))
+	if name == "" {
+		name = "Admin"
+	}
 	var count int64
 	db.Model(&models.User{}).Where("role = ?", models.RoleAdmin).Count(&count)
 	if count > 0 {
@@ -65,7 +70,7 @@ func bootstrapAdmin(db *gorm.DB, cfg *config.Config) {
 	}
 	admin := models.User{
 		Email: email, PasswordHash: hash, Role: models.RoleAdmin,
-		EmailConfirmed: true, FirstName: "Admin",
+		EmailConfirmed: true, FirstName: name,
 		Theme: cfg.DefaultTheme, ColorPalette: cfg.DefaultPalette, Language: "fr",
 	}
 	if err := db.Create(&admin).Error; err != nil {

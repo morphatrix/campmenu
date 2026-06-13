@@ -20,8 +20,12 @@ func (s *Server) Router() http.Handler {
 	r.Use(requestLogger)
 	r.Use(cors.Handler(cors.Options{
 		// Origins read live from the settings store so admins can add allowed
-		// URLs without a restart.
+		// URLs without a restart. Localhost (any port) is always allowed: a
+		// remote page cannot forge Origin: localhost, so it stays safe in prod.
 		AllowOriginFunc: func(_ *http.Request, origin string) bool {
+			if isLocalhostOrigin(origin) {
+				return true
+			}
 			for _, o := range s.Settings.AllowedOrigins() {
 				if o == origin {
 					return true
