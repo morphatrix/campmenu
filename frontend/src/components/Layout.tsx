@@ -69,6 +69,9 @@ export default function Layout() {
       <main className="mx-auto max-w-6xl px-4 py-6">
         <Outlet />
       </main>
+      <footer className="mx-auto max-w-6xl px-4 pb-6 text-right text-[11px] text-muted/70">
+        <span title={t('common.version')}>{__APP_VERSION__}</span>
+      </footer>
     </div>
   )
 }

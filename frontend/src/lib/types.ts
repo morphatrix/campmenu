@@ -92,6 +92,7 @@ export interface ProductListItem {
 export interface ProductList {
   id: string
   name: string
+  eventId?: string | null // null = shared catalog; set = private to one event
   voted: boolean
   sections: string[]
   items?: ProductListItem[]

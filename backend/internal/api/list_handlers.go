@@ -10,18 +10,45 @@ import (
 	"gorm.io/gorm"
 )
 
-func (s *Server) handleListProductLists(w http.ResponseWriter, _ *http.Request) {
-	var lists []models.ProductList
-	s.DB.
+// handleListProductLists returns the shared catalog (EventID IS NULL). With
+// ?eventId=<id> it also includes that event's own private lists, so they can be
+// resolved by tabs without leaking into the global catalog or other events.
+func (s *Server) handleListProductLists(w http.ResponseWriter, r *http.Request) {
+	q := s.DB.
 		Preload("Items", func(db *gorm.DB) *gorm.DB { return db.Order("position asc, name asc") }).
-		Order("name asc").Find(&lists)
+		Order("name asc")
+	if eid, err := uuid.Parse(r.URL.Query().Get("eventId")); err == nil {
+		q = q.Where("event_id IS NULL OR event_id = ?", eid)
+	} else {
+		q = q.Where("event_id IS NULL")
+	}
+	var lists []models.ProductList
+	q.Find(&lists)
 	writeJSON(w, http.StatusOK, lists)
 }
 
 type productListReq struct {
-	Name     string   `json:"name"`
-	Voted    *bool    `json:"voted"`
-	Sections []string `json:"sections"`
+	Name     string     `json:"name"`
+	Voted    *bool      `json:"voted"`
+	Sections []string   `json:"sections"`
+	EventID  *uuid.UUID `json:"eventId"` // set => list private to that event
+}
+
+// nameTakenInScope reports whether a list with the same (case-insensitive) name
+// already exists in the same scope (the global catalog, or one event).
+func (s *Server) nameTakenInScope(name string, eventID *uuid.UUID, excludeID uuid.UUID) bool {
+	q := s.DB.Model(&models.ProductList{}).Where("LOWER(name) = LOWER(?)", name)
+	if eventID != nil {
+		q = q.Where("event_id = ?", *eventID)
+	} else {
+		q = q.Where("event_id IS NULL")
+	}
+	if excludeID != uuid.Nil {
+		q = q.Where("id <> ?", excludeID)
+	}
+	var cnt int64
+	q.Count(&cnt)
+	return cnt > 0
 }
 
 func (s *Server) handleCreateProductList(w http.ResponseWriter, r *http.Request) {
@@ -30,15 +57,20 @@ func (s *Server) handleCreateProductList(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, "corps de requête invalide")
 		return
 	}
-	if strings.TrimSpace(req.Name) == "" {
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
 		writeError(w, http.StatusBadRequest, "nom requis")
+		return
+	}
+	if s.nameTakenInScope(name, req.EventID, uuid.Nil) {
+		writeError(w, http.StatusConflict, "une liste porte déjà ce nom")
 		return
 	}
 	voted := true
 	if req.Voted != nil {
 		voted = *req.Voted
 	}
-	list := models.ProductList{Name: strings.TrimSpace(req.Name), Voted: voted, Sections: req.Sections}
+	list := models.ProductList{Name: name, Voted: voted, Sections: req.Sections, EventID: req.EventID}
 	if err := s.DB.Create(&list).Error; err != nil {
 		writeError(w, http.StatusConflict, "une liste porte déjà ce nom")
 		return
@@ -47,6 +79,33 @@ func (s *Server) handleCreateProductList(w http.ResponseWriter, r *http.Request)
 		s.DB.Model(&models.ProductList{}).Where("id = ?", list.ID).Update("voted", false)
 	}
 	writeJSON(w, http.StatusCreated, list)
+}
+
+// handleSaveProductList promotes an event-private list to the shared catalog by
+// clearing its EventID, after which it appears on the Lists page like the others.
+func (s *Server) handleSaveProductList(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "id invalide")
+		return
+	}
+	var list models.ProductList
+	if err := s.DB.First(&list, "id = ?", id).Error; err != nil {
+		writeError(w, http.StatusNotFound, "liste introuvable")
+		return
+	}
+	if list.EventID == nil { // already global
+		s.DB.Preload("Items").First(&list, "id = ?", id)
+		writeJSON(w, http.StatusOK, list)
+		return
+	}
+	if s.nameTakenInScope(list.Name, nil, id) {
+		writeError(w, http.StatusConflict, "une liste du catalogue porte déjà ce nom")
+		return
+	}
+	s.DB.Model(&models.ProductList{}).Where("id = ?", id).Update("event_id", nil)
+	s.DB.Preload("Items").First(&list, "id = ?", id)
+	writeJSON(w, http.StatusOK, list)
 }
 
 func (s *Server) handleUpdateProductList(w http.ResponseWriter, r *http.Request) {
@@ -60,9 +119,18 @@ func (s *Server) handleUpdateProductList(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, "corps de requête invalide")
 		return
 	}
+	var current models.ProductList
+	if err := s.DB.First(&current, "id = ?", id).Error; err != nil {
+		writeError(w, http.StatusNotFound, "liste introuvable")
+		return
+	}
 	updates := map[string]any{}
-	if strings.TrimSpace(req.Name) != "" {
-		updates["name"] = strings.TrimSpace(req.Name)
+	if name := strings.TrimSpace(req.Name); name != "" && name != current.Name {
+		if s.nameTakenInScope(name, current.EventID, id) {
+			writeError(w, http.StatusConflict, "une liste porte déjà ce nom")
+			return
+		}
+		updates["name"] = name
 	}
 	if req.Voted != nil {
 		updates["voted"] = *req.Voted
@@ -72,7 +140,7 @@ func (s *Server) handleUpdateProductList(w http.ResponseWriter, r *http.Request)
 	}
 	if len(updates) > 0 {
 		if err := s.DB.Model(&models.ProductList{}).Where("id = ?", id).Updates(updates).Error; err != nil {
-			writeError(w, http.StatusConflict, "une liste porte déjà ce nom")
+			writeError(w, http.StatusConflict, "mise à jour impossible")
 			return
 		}
 	}

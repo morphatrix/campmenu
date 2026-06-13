@@ -48,11 +48,14 @@ export default function TabBar({
   const [choice, setChoice] = useState('')
   const [newListName, setNewListName] = useState('')
   const [newListVoted, setNewListVoted] = useState(true)
+  const [newListEventOnly, setNewListEventOnly] = useState(false)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   useEffect(() => {
-    if (adding) api.get<ProductList[]>('/product-lists').then(setLists)
-  }, [adding])
+    // Include this event's private lists so they can be reused without leaking
+    // into the global catalog.
+    if (adding) api.get<ProductList[]>(`/product-lists?eventId=${eventId}`).then(setLists)
+  }, [adding, eventId])
   const sorted = [...tabs].sort((a, b) => a.position - b.position)
 
   async function onDragEnd(e: DragEndEvent) {
@@ -71,7 +74,9 @@ export default function TabBar({
       let listId = choice
       if (choice === '__new__') {
         if (!newListName.trim()) return
-        const created = await api.post<ProductList>('/product-lists', { name: newListName, voted: newListVoted })
+        const created = await api.post<ProductList>('/product-lists', {
+          name: newListName, voted: newListVoted, eventId: newListEventOnly ? eventId : null,
+        })
         listId = created.id
       }
       if (!listId) return
@@ -79,6 +84,7 @@ export default function TabBar({
     }
     setChoice('')
     setNewListName('')
+    setNewListEventOnly(false)
     setAdding(false)
     onChange()
   }
@@ -123,6 +129,9 @@ export default function TabBar({
                 <input className="input w-36" value={newListName} placeholder={t('lists.name')} onChange={(e) => setNewListName(e.target.value)} />
                 <label className="flex items-center gap-1 text-xs whitespace-nowrap">
                   <input type="checkbox" checked={newListVoted} onChange={(e) => setNewListVoted(e.target.checked)} /> {t('lists.voted')}
+                </label>
+                <label className="flex items-center gap-1 text-xs whitespace-nowrap" title={t('lists.eventOnlyHint')}>
+                  <input type="checkbox" checked={newListEventOnly} onChange={(e) => setNewListEventOnly(e.target.checked)} /> {t('lists.eventOnly')}
                 </label>
               </>
             )}

@@ -56,6 +56,8 @@ spec:
             - -c
             - |
               set -e
+              apk add --no-cache git # lets the build stamp the deployed commit date
+              git config --global --add safe.directory '*' # repo was cloned by another container
               cd "/workspace/repo${APP_SUBDIR:+/$APP_SUBDIR}/frontend"
               npm install
               npm run build

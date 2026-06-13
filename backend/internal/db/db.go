@@ -50,6 +50,11 @@ func Open(dsn string) (*gorm.DB, error) {
 	gdb.Exec(`UPDATE event_tabs SET removable = false WHERE kind = 'SHOPPING'`)
 	// Backfill recipe tags from the legacy kind column.
 	gdb.Exec(`UPDATE recipes SET tags = jsonb_build_array(kind) WHERE (tags IS NULL OR tags = '[]'::jsonb) AND COALESCE(kind,'') <> ''`)
+	// product_lists.name is no longer globally unique (now scoped global vs
+	// per-event); drop the legacy unique index/constraint if it lingers so two
+	// events can each have e.g. a "Petit-déjeuner" list.
+	gdb.Exec(`DROP INDEX IF EXISTS idx_product_lists_name`)
+	gdb.Exec(`ALTER TABLE product_lists DROP CONSTRAINT IF EXISTS uni_product_lists_name`)
 
 	return gdb, nil
 }

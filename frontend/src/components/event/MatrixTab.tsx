@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Trash2, X, Wine } from 'lucide-react'
+import { Plus, Trash2, X, Wine, Save } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useLive } from '../../context/LiveContext'
 import { useAuth } from '../../context/AuthContext'
@@ -20,7 +20,43 @@ interface Props {
 }
 
 export default function MatrixTab(props: Props) {
-  return props.tab.voted ? <VotedMatrix {...props} /> : <NonVotedMatrix {...props} />
+  return (
+    <div className="space-y-3">
+      <SaveListToCatalog tab={props.tab} event={props.event} isAdmin={props.isAdmin} onChange={props.onChange} />
+      {props.tab.voted ? <VotedMatrix {...props} /> : <NonVotedMatrix {...props} />}
+    </div>
+  )
+}
+
+// SaveListToCatalog lets an organizer promote this tab's event-private source
+// list into the shared catalog. It renders nothing for global lists or non-admins.
+function SaveListToCatalog({
+  tab, event, isAdmin, onChange,
+}: {
+  tab: EventTab; event: Event; isAdmin: boolean; onChange: () => void
+}) {
+  const { t } = useTranslation()
+  const [list, setList] = useState<ProductList | null>(null)
+  useEffect(() => {
+    if (!tab.listId) { setList(null); return }
+    api.get<ProductList[]>(`/product-lists?eventId=${event.id}`)
+      .then((ls) => setList(ls.find((l) => l.id === tab.listId) ?? null))
+  }, [tab.listId, event.id])
+
+  if (!isAdmin || !list || !list.eventId) return null
+
+  async function save() {
+    await api.post(`/product-lists/${list!.id}/save`, {})
+    onChange()
+  }
+  return (
+    <div className="flex items-center justify-end gap-2">
+      <span className="chip bg-surface text-xs text-muted">{t('lists.eventOnlyBadge')}</span>
+      <button className="btn-ghost text-xs" onClick={save} title={t('lists.saveToCatalogHint')}>
+        <Save size={14} /> {t('lists.saveToCatalog')}
+      </button>
+    </div>
+  )
 }
 
 // ─── Voted: participants pick a per-day quantity, total = Σ × days ──────────
@@ -78,6 +114,7 @@ function VotedMatrix({ tab, event, isAdmin, onChange }: Props) {
                 <th key={p.id} className="p-2 text-center font-medium">{displayName(p.user)}</th>
               ))}
               <th className="p-2 text-right">{t('matrix.total')}</th>
+              <th className="p-2" />
               {isAdmin && <th />}
             </tr>
           </thead>
@@ -99,7 +136,8 @@ function VotedMatrix({ tab, event, isAdmin, onChange }: Props) {
                     </td>
                   )
                 })}
-                <td className="p-2 text-right font-semibold">{total(art)} {art.unit}</td>
+                <td className="p-2 text-right font-semibold tabular-nums">{total(art)}</td>
+                <td className="p-2 pl-1 text-left text-xs text-muted">{art.unit}</td>
                 {isAdmin && (
                   <td className="p-1">
                     <button className="text-danger" onClick={async () => { await api.del(`/articles/${art.id}`); onChange() }}><Trash2 size={14} /></button>
@@ -113,12 +151,12 @@ function VotedMatrix({ tab, event, isAdmin, onChange }: Props) {
       <p className="text-xs text-muted">
         Quantité choisie <strong>par personne et par jour</strong> · Total = somme des choix × {days} jour{days > 1 ? 's' : ''}
       </p>
-      {isAdmin && <AddVotedArticle tab={tab} existing={articles} onAdded={onChange} />}
+      {isAdmin && <AddVotedArticle tab={tab} event={event} existing={articles} onAdded={onChange} />}
     </div>
   )
 }
 
-function AddVotedArticle({ tab, existing, onAdded }: { tab: EventTab; existing: TabArticle[]; onAdded: () => void }) {
+function AddVotedArticle({ tab, event, existing, onAdded }: { tab: EventTab; event: Event; existing: TabArticle[]; onAdded: () => void }) {
   const { t } = useTranslation()
   const [list, setList] = useState<ProductList | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -130,10 +168,10 @@ function AddVotedArticle({ tab, existing, onAdded }: { tab: EventTab; existing: 
 
   async function loadList() {
     if (!tab.listId) return
-    const lists = await api.get<ProductList[]>('/product-lists')
+    const lists = await api.get<ProductList[]>(`/product-lists?eventId=${event.id}`)
     setList(lists.find((l) => l.id === tab.listId) ?? null)
   }
-  useEffect(() => { loadList() }, [tab.listId])
+  useEffect(() => { loadList() }, [tab.listId, event.id])
 
   const existingNames = new Set(existing.map((a) => a.name.toLowerCase()))
   const available = (list?.items ?? []).filter((it) => !existingNames.has(it.name.toLowerCase()))
@@ -255,7 +293,7 @@ function NonVotedMatrix({ tab, isAdmin, effectiveParticipants, onChange }: Props
                       <input className="input h-8 w-20 py-1 text-right" type="number" step="0.1" defaultValue={art.quantity || ''}
                         onBlur={(e) => setQuantity(art, +e.target.value)} />
                     ) : (
-                      <span className="font-semibold tabular-nums">{art.quantity}</span>
+                      <span className="inline-block w-20 text-right font-semibold tabular-nums">{art.quantity}</span>
                     )}
                     <span className="text-muted">{art.unit}</span>
                     {isAdmin && <button className="text-danger" onClick={() => removeArticle(art.id)}><Trash2 size={14} /></button>}
@@ -270,7 +308,7 @@ function NonVotedMatrix({ tab, isAdmin, effectiveParticipants, onChange }: Props
                       <input className="input h-8 w-20 py-1 text-right" type="number" min={0} defaultValue={tr.participantCount || ''}
                         placeholder={String(effectiveParticipants)} onBlur={(e) => setRecipeCount(tr.id, +e.target.value)} />
                     ) : (
-                      <span className="font-semibold tabular-nums">{tr.participantCount || effectiveParticipants}</span>
+                      <span className="inline-block w-20 text-right font-semibold tabular-nums">{tr.participantCount || effectiveParticipants}</span>
                     )}
                     <span className="text-muted">{t('menu.persons')}</span>
                     {isAdmin && <button className="text-danger" onClick={() => removeRecipe(tr.id)}><Trash2 size={14} /></button>}

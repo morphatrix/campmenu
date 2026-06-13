@@ -221,12 +221,15 @@ type LocationVote struct {
 	LocationID uuid.UUID `gorm:"type:uuid;index" json:"locationId"`
 }
 
-// ProductList is a reusable, shared catalog of articles (e.g. "Sur les pistes")
-// from which matrix tabs are populated.
+// ProductList is a catalog of articles (e.g. "Sur les pistes") from which matrix
+// tabs are populated. When EventID is nil the list belongs to the shared global
+// catalog (visible on the Lists page); when set it is private to one event and
+// hidden from the catalog until an organizer "saves" it (clears EventID).
 type ProductList struct {
 	Base
-	Name     string            `gorm:"uniqueIndex;not null" json:"name"`
-	Voted    bool              `gorm:"default:true" json:"voted"` // tabs created from it default to this mode
+	Name     string            `gorm:"not null;index" json:"name"`
+	EventID  *uuid.UUID        `gorm:"type:uuid;index" json:"eventId"` // nil = global catalog
+	Voted    bool              `gorm:"default:true" json:"voted"`      // tabs created from it default to this mode
 	Sections JSONStrings       `gorm:"type:jsonb" json:"sections"`
 	Items    []ProductListItem `gorm:"foreignKey:ListID;constraint:OnDelete:CASCADE" json:"items,omitempty"`
 }

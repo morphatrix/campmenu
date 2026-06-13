@@ -122,6 +122,7 @@ func (s *Server) Router() http.Handler {
 			r.Get("/product-lists", s.handleListProductLists)
 			r.Post("/product-lists", s.handleCreateProductList)
 			r.Patch("/product-lists/{id}", s.handleUpdateProductList)
+			r.Post("/product-lists/{id}/save", s.handleSaveProductList) // promote event-private list to catalog
 			r.Delete("/product-lists/{id}", s.handleDeleteProductList)
 			r.Post("/product-lists/{id}/items", s.handleAddListItem)
 			r.Patch("/product-list-items/{itemID}", s.handleUpdateListItem)

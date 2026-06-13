@@ -68,6 +68,9 @@ const fr = {
       chooseList: 'Choisir une liste…', newList: '＋ Nouvelle liste',
       voted: 'Soumis au vote des participants', notVotedSuffix: ' (sans vote)',
       sections: 'Sections', addSection: 'Ajouter une section', total: 'Total', addCocktail: 'Ajouter un cocktail',
+      eventOnly: 'Propre à l\'événement', eventOnlyHint: 'La liste reste privée à cet événement et n\'apparaît pas dans le catalogue partagé.',
+      eventOnlyBadge: 'Liste propre à l\'événement',
+      saveToCatalog: 'Enregistrer dans le catalogue', saveToCatalogHint: 'Rendre cette liste disponible pour tous les événements.',
     },
     shopping: {
       title: 'Liste de courses', ingredient: 'Ingrédient', quantity: 'Quantité', source: 'Source',
@@ -108,7 +111,7 @@ const fr = {
       smtp: 'Serveur email (SMTP)', smtpHost: 'Hôte', smtpPort: 'Port', smtpUser: 'Utilisateur', smtpPass: 'Mot de passe',
       smtpFrom: 'Expéditeur', dbNote: 'La base de données et le secret JWT se configurent uniquement via les variables d’environnement.',
     },
-    common: { save: 'Enregistrer', cancel: 'Annuler', delete: 'Supprimer', add: 'Ajouter', edit: 'Modifier', loading: 'Chargement…', close: 'Fermer', confirmDelete: 'Supprimer « {{name}} » ?' },
+    common: { save: 'Enregistrer', cancel: 'Annuler', delete: 'Supprimer', add: 'Ajouter', edit: 'Modifier', loading: 'Chargement…', close: 'Fermer', confirmDelete: 'Supprimer « {{name}} » ?', version: 'Dernier commit déployé' },
   },
 }
 
@@ -178,6 +181,9 @@ const en = {
       chooseList: 'Choose a list…', newList: '＋ New list',
       voted: 'Subject to participant vote', notVotedSuffix: ' (no vote)',
       sections: 'Sections', addSection: 'Add a section', total: 'Total', addCocktail: 'Add a cocktail',
+      eventOnly: 'Event-specific', eventOnlyHint: 'The list stays private to this event and is hidden from the shared catalog.',
+      eventOnlyBadge: 'Event-specific list',
+      saveToCatalog: 'Save to catalog', saveToCatalogHint: 'Make this list available to every event.',
     },
     shopping: {
       title: 'Shopping list', ingredient: 'Ingredient', quantity: 'Quantity', source: 'Source',
@@ -218,7 +224,7 @@ const en = {
       smtp: 'Email server (SMTP)', smtpHost: 'Host', smtpPort: 'Port', smtpUser: 'User', smtpPass: 'Password',
       smtpFrom: 'Sender', dbNote: 'Database and JWT secret are configured only through environment variables.',
     },
-    common: { save: 'Save', cancel: 'Cancel', delete: 'Delete', add: 'Add', edit: 'Edit', loading: 'Loading…', close: 'Close', confirmDelete: 'Delete “{{name}}”?' },
+    common: { save: 'Save', cancel: 'Cancel', delete: 'Delete', add: 'Add', edit: 'Edit', loading: 'Loading…', close: 'Close', confirmDelete: 'Delete “{{name}}”?', version: 'Last deployed commit' },
   },
 }
 

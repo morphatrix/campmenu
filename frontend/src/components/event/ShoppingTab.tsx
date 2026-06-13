@@ -54,6 +54,7 @@ export default function ShoppingTab({ event }: { event: Event }) {
                   <th className="p-2"></th>
                   <th className="p-2">{t('shopping.ingredient')}</th>
                   <th className="p-2 text-right">{t('shopping.quantity')}</th>
+                  <th className="p-2" />
                   <th className="p-2">{t('shopping.supply')}</th>
                   <th className="p-2">{t('shopping.observation')}</th>
                 </tr>
@@ -65,7 +66,8 @@ export default function ShoppingTab({ event }: { event: Event }) {
                       <input type="checkbox" checked={line.bought} onChange={(e) => update(line, { bought: e.target.checked })} title={t('shopping.bought')} />
                     </td>
                     <td className="p-2 font-medium">{line.name}</td>
-                    <td className="p-2 text-right tabular-nums">{line.quantity} {line.unit}</td>
+                    <td className="p-2 text-right tabular-nums">{line.quantity}</td>
+                    <td className="p-2 pl-1 text-left text-muted">{line.unit}</td>
                     <td className="p-2">
                       <SupplySelect line={line} participants={participants} onUpdate={(patch) => update(line, patch)} />
                     </td>
