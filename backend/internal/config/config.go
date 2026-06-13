@@ -18,6 +18,10 @@ type Config struct {
 	JWTSecret string
 	JWTExpiry time.Duration
 
+	// SettingsEncKey enables encryption-at-rest for sensitive settings
+	// (SMTP password, external DB DSN). Empty = stored in plaintext.
+	SettingsEncKey string
+
 	BcryptCost int
 
 	// SMTP. If SMTPHost is empty, emails are logged to stdout instead of sent.
@@ -73,6 +77,7 @@ func Load() *Config {
 		DatabaseDSN:          getenv("DATABASE_DSN", "host=localhost user=campmenu password=campmenu dbname=campmenu port=5432 sslmode=disable TimeZone=UTC"),
 		JWTSecret:            getenv("JWT_SECRET", "change-me-in-production"),
 		JWTExpiry:            time.Duration(getenvInt("JWT_EXPIRY_HOURS", 168)) * time.Hour,
+		SettingsEncKey:       getenv("SETTINGS_ENC_KEY", ""),
 		BcryptCost:           getenvInt("BCRYPT_COST", 12),
 		SMTPHost:             getenv("SMTP_HOST", ""),
 		SMTPPort:             getenvInt("SMTP_PORT", 587),

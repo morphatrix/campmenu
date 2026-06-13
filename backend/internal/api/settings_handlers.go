@@ -4,22 +4,69 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/morphatrix/campmenu/internal/db"
 	"github.com/morphatrix/campmenu/internal/models"
 	"github.com/morphatrix/campmenu/internal/settings"
-	"gorm.io/gorm/clause"
 )
+
+const dsnPasswordMask = "••••••••"
+
+// maskDSNPassword replaces the password value in a key=value DSN with bullets so
+// it is never sent back to the browser.
+func maskDSNPassword(dsn string) string {
+	fields := strings.Fields(dsn)
+	for i, f := range fields {
+		if strings.HasPrefix(f, "password=") && len(f) > len("password=") {
+			fields[i] = "password=" + dsnPasswordMask
+		}
+	}
+	return strings.Join(fields, " ")
+}
+
+// mergeDSNPassword restores the stored password when the submitted DSN still
+// carries the bullet mask (i.e. the admin didn't retype it).
+func mergeDSNPassword(incoming, stored string) string {
+	var storedPwd string
+	for _, f := range strings.Fields(stored) {
+		if strings.HasPrefix(f, "password=") {
+			storedPwd = f
+			break
+		}
+	}
+	fields := strings.Fields(incoming)
+	for i, f := range fields {
+		if strings.HasPrefix(f, "password=") {
+			val := strings.TrimPrefix(f, "password=")
+			if isAllBullets(val) && storedPwd != "" {
+				fields[i] = storedPwd
+			}
+		}
+	}
+	return strings.Join(fields, " ")
+}
+
+func isAllBullets(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if r != '•' {
+			return false
+		}
+	}
+	return true
+}
 
 // ---- external database configuration ----
 
-// handleGetDBConfig returns the external database pointer (stored in the primary
-// DB) and whether the app is currently running on it.
+// handleGetDBConfig returns the external database pointer (password masked) and
+// whether the app is currently running on it.
 func (s *Server) handleGetDBConfig(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"externalDsn":   db.ExternalDSN(s.Primary),
+		"externalDsn":   maskDSNPassword(db.ExternalDSN(s.Primary, s.Crypto)),
 		"usingExternal": s.UsingExternal,
+		"encrypted":     s.Crypto.Enabled(),
 	})
 }
 
@@ -27,9 +74,9 @@ type dbConfigReq struct {
 	ExternalDsn string `json:"externalDsn"`
 }
 
-// handleUpdateDBConfig validates and persists the external DSN to the PRIMARY
-// database. It takes effect on the next restart (the working connection is bound
-// at boot); an empty value reverts to the primary database.
+// handleUpdateDBConfig validates and persists the external DSN (encrypted at
+// rest) to the PRIMARY database. It takes effect on the next restart; an empty
+// value reverts to the primary database. A masked password is preserved.
 func (s *Server) handleUpdateDBConfig(w http.ResponseWriter, r *http.Request) {
 	var req dbConfigReq
 	if err := decode(r, &req); err != nil {
@@ -38,16 +85,13 @@ func (s *Server) handleUpdateDBConfig(w http.ResponseWriter, r *http.Request) {
 	}
 	dsn := strings.TrimSpace(req.ExternalDsn)
 	if dsn != "" {
+		dsn = mergeDSNPassword(dsn, db.ExternalDSN(s.Primary, s.Crypto))
 		if err := db.Ping(dsn); err != nil {
 			writeError(w, http.StatusBadRequest, "connexion à la base externe impossible : "+err.Error())
 			return
 		}
 	}
-	row := models.AppSetting{Key: db.ExternalDSNKey, Value: dsn, UpdatedAt: time.Now()}
-	if err := s.Primary.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "key"}},
-		DoUpdates: clause.AssignmentColumns([]string{"value", "updated_at"}),
-	}).Create(&row).Error; err != nil {
+	if err := db.SetExternalDSN(s.Primary, s.Crypto, dsn); err != nil {
 		writeError(w, http.StatusInternalServerError, "enregistrement impossible")
 		return
 	}

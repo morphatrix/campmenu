@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/morphatrix/campmenu/internal/models"
+	"github.com/morphatrix/campmenu/internal/secrets"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	gormlogger "gorm.io/gorm/logger"
 )
 
@@ -113,11 +115,31 @@ func Ping(dsn string) error {
 }
 
 // ExternalDSN returns the configured external database DSN stored in the primary
-// database, or "" when none is set (the app then stays on the primary).
-func ExternalDSN(primary *gorm.DB) string {
+// database (decrypted), or "" when none is set (the app then stays on primary).
+func ExternalDSN(primary *gorm.DB, cipher *secrets.Cipher) string {
 	var row models.AppSetting
 	if err := primary.Where("key = ?", ExternalDSNKey).First(&row).Error; err != nil {
 		return ""
 	}
-	return row.Value
+	return cipher.Decrypt(row.Value)
+}
+
+// ExternalDSNEncrypted reports whether the stored external DSN is already
+// ciphertext (used to migrate a legacy plaintext value on boot).
+func ExternalDSNEncrypted(primary *gorm.DB) bool {
+	var row models.AppSetting
+	if err := primary.Where("key = ?", ExternalDSNKey).First(&row).Error; err != nil {
+		return false
+	}
+	return secrets.IsEncrypted(row.Value)
+}
+
+// SetExternalDSN persists the external DSN (encrypted at rest) to the primary
+// database. An empty dsn clears the pointer (revert to the primary database).
+func SetExternalDSN(primary *gorm.DB, cipher *secrets.Cipher, dsn string) error {
+	row := models.AppSetting{Key: ExternalDSNKey, Value: cipher.Encrypt(dsn), UpdatedAt: time.Now()}
+	return primary.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "key"}},
+		DoUpdates: clause.AssignmentColumns([]string{"value", "updated_at"}),
+	}).Create(&row).Error
 }

@@ -26,6 +26,7 @@ services:
       APP_URL: ${APP_URL:-http://localhost:5173}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
       JWT_SECRET: ${JWT_SECRET:-change-me-please-32-chars-min}
+      SETTINGS_ENC_KEY: ${SETTINGS_ENC_KEY:-}
       EMAIL_CONFIRM_REQUIRED: ${EMAIL_CONFIRM_REQUIRED:-false}
       BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@example.com}
       BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-changeme-strong-password}

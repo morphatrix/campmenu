@@ -17,6 +17,7 @@ import (
 	"github.com/morphatrix/campmenu/internal/config"
 	"github.com/morphatrix/campmenu/internal/db"
 	"github.com/morphatrix/campmenu/internal/mail"
+	"github.com/morphatrix/campmenu/internal/secrets"
 	"github.com/morphatrix/campmenu/internal/seed"
 	"github.com/morphatrix/campmenu/internal/settings"
 	"github.com/morphatrix/campmenu/internal/sse"
@@ -32,6 +33,9 @@ func main() {
 		slog.Warn("weak JWT_SECRET — set a strong random value of at least 32 characters in production")
 	}
 
+	// Cipher for encryption-at-rest of sensitive settings (SMTP/DB password).
+	cipher := secrets.New(cfg.SettingsEncKey)
+
 	// Primary database (from env). It always holds the pointer to an optional
 	// external database configured later from the admin UI.
 	primary, err := db.Open(cfg.DatabaseDSN)
@@ -44,7 +48,13 @@ func main() {
 	// log and stay on the primary so the app still boots and the DSN can be fixed.
 	database := primary
 	usingExternal := false
-	if dsn := db.ExternalDSN(primary); dsn != "" {
+	if dsn := db.ExternalDSN(primary, cipher); dsn != "" {
+		// Migrate a legacy plaintext DSN to ciphertext now that a key is set.
+		if cipher.Enabled() && !db.ExternalDSNEncrypted(primary) {
+			if err := db.SetExternalDSN(primary, cipher, dsn); err != nil {
+				slog.Error("external DSN encryption migration failed", "error", err)
+			}
+		}
 		if ext, err := db.OpenOnce(dsn); err != nil {
 			slog.Error("external database unreachable, using primary", "error", err)
 		} else {
@@ -69,7 +79,7 @@ func main() {
 		settings.KeySMTPPass:             cfg.SMTPPass,
 		settings.KeySMTPFrom:             cfg.SMTPFrom,
 		settings.KeyEmailConfirmRequired: strconv.FormatBool(cfg.EmailConfirmRequired),
-	})
+	}, cipher)
 	if err != nil {
 		slog.Error("settings init failed", "error", err)
 		os.Exit(1)
@@ -80,6 +90,7 @@ func main() {
 	// the app is currently running on the external database.
 	srv.Primary = primary
 	srv.UsingExternal = usingExternal
+	srv.Crypto = cipher
 	httpServer := &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           srv.Router(),

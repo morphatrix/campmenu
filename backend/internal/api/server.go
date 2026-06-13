@@ -8,6 +8,7 @@ import (
 	"github.com/morphatrix/campmenu/internal/config"
 	"github.com/morphatrix/campmenu/internal/mail"
 	"github.com/morphatrix/campmenu/internal/models"
+	"github.com/morphatrix/campmenu/internal/secrets"
 	"github.com/morphatrix/campmenu/internal/settings"
 	"github.com/morphatrix/campmenu/internal/sse"
 	"gorm.io/gorm"
@@ -26,6 +27,8 @@ type Server struct {
 	Primary *gorm.DB
 	// UsingExternal reports whether DB is currently the external database.
 	UsingExternal bool
+	// Crypto encrypts/decrypts sensitive settings stored at rest.
+	Crypto *secrets.Cipher
 }
 
 func New(db *gorm.DB, cfg *config.Config, mailer *mail.Mailer, st *settings.Store, hub *sse.Hub) *Server {

@@ -7,9 +7,13 @@ import (
 	"time"
 
 	"github.com/morphatrix/campmenu/internal/models"
+	"github.com/morphatrix/campmenu/internal/secrets"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+// sensitiveKeys are encrypted at rest (decrypted transparently in memory).
+var sensitiveKeys = map[string]bool{KeySMTPPass: true}
 
 // Setting keys (also the env var names used as defaults).
 const (
@@ -35,16 +39,21 @@ var EditableKeys = []string{
 	KeyEmailConfirmRequired,
 }
 
-// Store is a thread-safe, DB-backed settings cache.
+// Store is a thread-safe, DB-backed settings cache. Sensitive values are
+// encrypted at rest and decrypted transparently into the in-memory cache.
 type Store struct {
-	db   *gorm.DB
-	mu   sync.RWMutex
-	vals map[string]string
+	db      *gorm.DB
+	cipher  *secrets.Cipher
+	mu      sync.RWMutex
+	vals    map[string]string // always plaintext in memory
+	encInDB map[string]bool   // keys whose stored value was already ciphertext
 }
 
 // New loads settings from the DB and seeds any missing key with its env default.
-func New(db *gorm.DB, defaults map[string]string) (*Store, error) {
-	s := &Store{db: db, vals: map[string]string{}}
+// The cipher encrypts sensitive keys at rest; pass a disabled cipher to keep
+// plaintext behaviour.
+func New(db *gorm.DB, defaults map[string]string, cipher *secrets.Cipher) (*Store, error) {
+	s := &Store{db: db, cipher: cipher, vals: map[string]string{}, encInDB: map[string]bool{}}
 	if err := s.reload(); err != nil {
 		return nil, err
 	}
@@ -61,6 +70,22 @@ func New(db *gorm.DB, defaults map[string]string) (*Store, error) {
 			return nil, err
 		}
 	}
+	// Migrate any sensitive value still stored in plaintext to ciphertext.
+	if cipher.Enabled() {
+		migrate := map[string]string{}
+		s.mu.RLock()
+		for k := range sensitiveKeys {
+			if v := s.vals[k]; v != "" && !s.encInDB[k] {
+				migrate[k] = v
+			}
+		}
+		s.mu.RUnlock()
+		if len(migrate) > 0 {
+			if err := s.Set(migrate); err != nil {
+				return nil, err
+			}
+		}
+	}
 	return s, nil
 }
 
@@ -70,11 +95,15 @@ func (s *Store) reload() error {
 		return err
 	}
 	m := make(map[string]string, len(rows))
+	enc := make(map[string]bool, len(rows))
 	for _, r := range rows {
-		m[r.Key] = r.Value
+		enc[r.Key] = secrets.IsEncrypted(r.Value)
+		// Decrypt sensitive values so the in-memory cache is plaintext for the app.
+		m[r.Key] = s.cipher.Decrypt(r.Value)
 	}
 	s.mu.Lock()
 	s.vals = m
+	s.encInDB = enc
 	s.mu.Unlock()
 	return nil
 }
@@ -97,10 +126,15 @@ func (s *Store) Int(key string, def int) int {
 	return def
 }
 
-// Set upserts the given keys and updates the in-memory cache.
+// Set upserts the given keys and updates the in-memory cache. Sensitive keys are
+// encrypted before they touch the database; the cache keeps plaintext.
 func (s *Store) Set(updates map[string]string) error {
 	for k, v := range updates {
-		row := models.AppSetting{Key: k, Value: v, UpdatedAt: time.Now()}
+		stored := v
+		if sensitiveKeys[k] {
+			stored = s.cipher.Encrypt(v)
+		}
+		row := models.AppSetting{Key: k, Value: stored, UpdatedAt: time.Now()}
 		if err := s.db.Clauses(clause.OnConflict{
 			Columns:   []clause.Column{{Name: "key"}},
 			DoUpdates: clause.AssignmentColumns([]string{"value", "updated_at"}),
@@ -110,7 +144,10 @@ func (s *Store) Set(updates map[string]string) error {
 	}
 	s.mu.Lock()
 	for k, v := range updates {
-		s.vals[k] = v
+		s.vals[k] = v // cache stays plaintext
+		if sensitiveKeys[k] {
+			s.encInDB[k] = s.cipher.Enabled()
+		}
 	}
 	s.mu.Unlock()
 	return nil

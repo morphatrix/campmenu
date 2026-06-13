@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net"
 	"net/smtp"
+	"strconv"
 	"time"
 
 	"github.com/morphatrix/campmenu/internal/settings"
@@ -36,7 +37,7 @@ func (m *Mailer) Send(to, subject, body string) error {
 	user := m.settings.Get(settings.KeySMTPUser)
 	pass := m.settings.Get(settings.KeySMTPPass)
 
-	addr := fmt.Sprintf("%s:%d", host, port)
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
 	msg := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s\r\n",
 		from, to, subject, body))
 
