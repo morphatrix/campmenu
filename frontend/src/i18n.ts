@@ -92,7 +92,11 @@ const fr = {
       language: 'Langue', save: 'Enregistrer', saved: 'Enregistré',
     },
     themes: { light: 'Clair', dark: 'Sombre', auto: 'Auto' },
-    palettes: { default: 'Indigo', sunset: 'Coucher de soleil', forest: 'Forêt', ocean: 'Océan' },
+    palettes: {
+      default: 'Indigo', sunset: 'Coucher de soleil', forest: 'Forêt', ocean: 'Océan',
+      rose: 'Rose', amber: 'Ambre', emerald: 'Émeraude', violet: 'Violet', crimson: 'Carmin',
+      teal: 'Sarcelle', midnight: 'Minuit', gold: 'Or', cyan: 'Cyan', plum: 'Prune',
+    },
     admin: {
       title: 'Administration', invites: 'Invitations', users: 'Utilisateurs', pendingRecipes: 'Recettes à approuver',
       createInvite: 'Créer une invitation', copyLink: 'Copier le lien', promote: 'Promouvoir admin', role: 'Rôle',
@@ -210,7 +214,11 @@ const en = {
       language: 'Language', save: 'Save', saved: 'Saved',
     },
     themes: { light: 'Light', dark: 'Dark', auto: 'Auto' },
-    palettes: { default: 'Indigo', sunset: 'Sunset', forest: 'Forest', ocean: 'Ocean' },
+    palettes: {
+      default: 'Indigo', sunset: 'Sunset', forest: 'Forest', ocean: 'Ocean',
+      rose: 'Rose', amber: 'Amber', emerald: 'Emerald', violet: 'Violet', crimson: 'Crimson',
+      teal: 'Teal', midnight: 'Midnight', gold: 'Gold', cyan: 'Cyan', plum: 'Plum',
+    },
     admin: {
       title: 'Administration', invites: 'Invitations', users: 'Users', pendingRecipes: 'Recipes to approve',
       createInvite: 'Create invitation', copyLink: 'Copy link', promote: 'Promote to admin', role: 'Role',

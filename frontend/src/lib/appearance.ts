@@ -12,5 +12,8 @@ export function applyAppearance(user: User | null) {
   root.setAttribute('data-colorblind', String(user?.colorblindMode ?? false))
 }
 
-export const PALETTES = ['default', 'sunset', 'forest', 'ocean'] as const
+export const PALETTES = [
+  'default', 'sunset', 'forest', 'ocean',
+  'rose', 'amber', 'emerald', 'violet', 'crimson', 'teal', 'midnight', 'gold', 'cyan', 'plum',
+] as const
 export const THEMES = ['light', 'dark', 'auto'] as const

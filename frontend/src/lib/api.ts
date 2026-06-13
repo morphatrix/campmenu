@@ -23,7 +23,14 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     body: body ? JSON.stringify(body) : undefined,
   })
   const text = await res.text()
-  const data = text ? JSON.parse(text) : null
+  // Tolerate non-JSON bodies (e.g. an HTML error page injected by a proxy on a
+  // 5xx): never let JSON.parse throw a cryptic "Unexpected token '<'".
+  let data: any = null
+  try {
+    data = text ? JSON.parse(text) : null
+  } catch {
+    data = null
+  }
   if (!res.ok) {
     throw new ApiError(res.status, data?.error ?? `Erreur ${res.status}`)
   }

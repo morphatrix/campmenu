@@ -3,10 +3,16 @@ package mail
 import (
 	"fmt"
 	"log/slog"
+	"net"
 	"net/smtp"
+	"time"
 
 	"github.com/morphatrix/campmenu/internal/settings"
 )
+
+// smtpTimeout caps how long we wait on a misbehaving mail server so a test send
+// (or any email) fails fast with a clear error instead of hanging the request.
+const smtpTimeout = 10 * time.Second
 
 // Mailer sends transactional email using the live settings store. When SMTP is
 // unconfigured it logs instead, so local development needs no mail server.
@@ -33,11 +39,42 @@ func (m *Mailer) Send(to, subject, body string) error {
 	addr := fmt.Sprintf("%s:%d", host, port)
 	msg := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n%s\r\n",
 		from, to, subject, body))
-	var auth smtp.Auth
-	if user != "" {
-		auth = smtp.PlainAuth("", user, pass, host)
+
+	// Dial with a timeout (net/smtp.SendMail has none, so an unreachable host
+	// would block the request indefinitely).
+	conn, err := net.DialTimeout("tcp", addr, smtpTimeout)
+	if err != nil {
+		return err
 	}
-	return smtp.SendMail(addr, auth, from, []string{to}, msg)
+	c, err := smtp.NewClient(conn, host)
+	if err != nil {
+		_ = conn.Close()
+		return err
+	}
+	defer c.Close()
+	if user != "" {
+		if err := c.Auth(smtp.PlainAuth("", user, pass, host)); err != nil {
+			return err
+		}
+	}
+	if err := c.Mail(from); err != nil {
+		return err
+	}
+	if err := c.Rcpt(to); err != nil {
+		return err
+	}
+	wc, err := c.Data()
+	if err != nil {
+		return err
+	}
+	if _, err := wc.Write(msg); err != nil {
+		_ = wc.Close()
+		return err
+	}
+	if err := wc.Close(); err != nil {
+		return err
+	}
+	return c.Quit()
 }
 
 // SendConfirmation emails an email-confirmation link.

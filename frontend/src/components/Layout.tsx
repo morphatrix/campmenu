@@ -1,13 +1,29 @@
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { CalendarDays, BookOpen, Martini, ListChecks, User as UserIcon, Shield, LogOut, Tent } from 'lucide-react'
+import { api, resolveAsset } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { displayName, isAdmin, isStaff } from '../lib/types'
+import type { SiteConfig } from '../lib/types'
 
 export default function Layout() {
   const { t } = useTranslation()
   const { user, logout, stopImpersonate } = useAuth()
   const navigate = useNavigate()
+
+  // Branding (site name + logo) comes from the public /config endpoint so it
+  // reflects the admin settings instead of a hardcoded name/icon.
+  const [site, setSite] = useState<{ siteName: string; logoUrl: string }>({ siteName: 'CampMenu', logoUrl: '' })
+  useEffect(() => {
+    api.get<SiteConfig>('/config')
+      .then((c) => {
+        const name = c.siteName?.trim() || 'CampMenu'
+        setSite({ siteName: name, logoUrl: c.logoUrl ?? '' })
+        document.title = name
+      })
+      .catch(() => {})
+  }, [])
 
   async function exitImpersonation() {
     await stopImpersonate()
@@ -41,7 +57,10 @@ export default function Layout() {
       <header className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2 font-semibold text-brand">
-            <Tent size={22} /> CampMenu
+            {site.logoUrl
+              ? <img src={resolveAsset(site.logoUrl)} alt="" className="h-6 w-6 rounded object-contain" />
+              : <Tent size={22} />}
+            {site.siteName}
             {user && <span className="chip ml-1 hidden font-normal text-muted sm:inline-flex">{t(`roles.${user.role}`)}</span>}
           </div>
           <nav className="flex items-center gap-1">

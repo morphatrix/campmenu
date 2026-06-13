@@ -6,6 +6,7 @@ import { api } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import Modal from '../components/Modal'
 import { isAdmin as roleIsAdmin, isStaff } from '../lib/types'
+import { PALETTES } from '../lib/appearance'
 import type { Invite, Role, User } from '../lib/types'
 
 type Section = 'invites' | 'users' | 'settings'
@@ -353,8 +354,12 @@ function SettingsSection() {
   async function sendTestEmail() {
     setTestEmail({ state: 'sending' })
     try {
-      const res = await api.post<{ to: string }>('/settings/test-email')
-      setTestEmail({ state: 'sent', msg: t('settings.testEmailSent', { to: res.to }) })
+      const res = await api.post<{ ok: boolean; to?: string; error?: string }>('/settings/test-email')
+      if (res.ok) {
+        setTestEmail({ state: 'sent', msg: t('settings.testEmailSent', { to: res.to }) })
+      } else {
+        setTestEmail({ state: 'error', msg: res.error ?? t('settings.testEmailFailed') })
+      }
     } catch (e: any) {
       setTestEmail({ state: 'error', msg: e?.message ?? t('settings.testEmailFailed') })
     }
@@ -385,10 +390,7 @@ function SettingsSection() {
           <div>
             <label className="label">{t('settings.defaultPalette')}</label>
             <select className="input" value={s['DEFAULT_PALETTE'] ?? 'default'} onChange={(e) => set('DEFAULT_PALETTE', e.target.value)}>
-              <option value="default">{t('palettes.default')}</option>
-              <option value="sunset">{t('palettes.sunset')}</option>
-              <option value="forest">{t('palettes.forest')}</option>
-              <option value="ocean">{t('palettes.ocean')}</option>
+              {PALETTES.map((p) => <option key={p} value={p}>{t(`palettes.${p}`)}</option>)}
             </select>
           </div>
         </div>
