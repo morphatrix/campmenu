@@ -15,11 +15,17 @@ import (
 
 // Server bundles the dependencies shared by every handler.
 type Server struct {
-	DB       *gorm.DB
+	DB       *gorm.DB // working database (external when configured, else primary)
 	Cfg      *config.Config
 	Mailer   *mail.Mailer
 	Settings *settings.Store
 	Hub      *sse.Hub
+
+	// Primary is the env-configured database; it stores the pointer to an
+	// optional external database. Equals DB when no external DB is configured.
+	Primary *gorm.DB
+	// UsingExternal reports whether DB is currently the external database.
+	UsingExternal bool
 }
 
 func New(db *gorm.DB, cfg *config.Config, mailer *mail.Mailer, st *settings.Store, hub *sse.Hub) *Server {

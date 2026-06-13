@@ -32,10 +32,25 @@ func main() {
 		slog.Warn("weak JWT_SECRET — set a strong random value of at least 32 characters in production")
 	}
 
-	database, err := db.Open(cfg.DatabaseDSN)
+	// Primary database (from env). It always holds the pointer to an optional
+	// external database configured later from the admin UI.
+	primary, err := db.Open(cfg.DatabaseDSN)
 	if err != nil {
 		slog.Error("database connection failed", "error", err)
 		os.Exit(1)
+	}
+
+	// If an external database is configured, use it for all data; on failure we
+	// log and stay on the primary so the app still boots and the DSN can be fixed.
+	database := primary
+	usingExternal := false
+	if dsn := db.ExternalDSN(primary); dsn != "" {
+		if ext, err := db.OpenOnce(dsn); err != nil {
+			slog.Error("external database unreachable, using primary", "error", err)
+		} else {
+			database, usingExternal = ext, true
+			slog.Info("using external database")
+		}
 	}
 
 	seed.Run(database, cfg)
@@ -61,6 +76,10 @@ func main() {
 	}
 
 	srv := api.New(database, cfg, mail.New(store), store, sse.NewHub())
+	// The primary handle lets the admin persist the external-DB pointer even when
+	// the app is currently running on the external database.
+	srv.Primary = primary
+	srv.UsingExternal = usingExternal
 	httpServer := &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           srv.Router(),

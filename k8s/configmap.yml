@@ -6,6 +6,13 @@ metadata:
 data:
   PORT: "8080"
   LOG_LEVEL: "info"
+  # PostgreSQL host/port for the PRIMARY database. Defaults to the in-cluster
+  # CloudNativePG service. Use a fully-qualified name (e.g.
+  # campmenu-db-rw.<namespace>.svc.cluster.local) to reach a DB in another
+  # namespace, so nothing is tied to a fixed namespace. (An *external* database
+  # is configured at runtime from the admin UI instead — see Settings.)
+  DB_HOST: "campmenu-db-rw"
+  DB_PORT: "5432"
   # Public URL of the frontend (used in invite/confirmation links + CORS).
   APP_URL: "https://campmenu.example.com"
   CORS_ORIGINS: "https://campmenu.example.com"

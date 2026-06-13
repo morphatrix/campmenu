@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { BadgeCheck, Ban, Copy, Eye, KeyRound, Mail, Pencil, Plus, ShieldCheck, Trash2, UserCog } from 'lucide-react'
+import { BadgeCheck, Ban, Copy, Database, Eye, KeyRound, Mail, Pencil, Plus, ShieldCheck, Trash2, UserCog } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import Modal from '../components/Modal'
@@ -333,6 +333,7 @@ function SettingsSection() {
   const { t } = useTranslation()
   const [s, setS] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
+  const [testEmail, setTestEmail] = useState<{ state: 'idle' | 'sending' | 'sent' | 'error'; msg?: string }>({ state: 'idle' })
 
   useEffect(() => {
     api.get<Record<string, string>>('/settings').then(setS)
@@ -347,6 +348,16 @@ function SettingsSection() {
     const updated = await api.patch<Record<string, string>>('/settings', s)
     setS(updated)
     setSaved(true)
+  }
+
+  async function sendTestEmail() {
+    setTestEmail({ state: 'sending' })
+    try {
+      const res = await api.post<{ to: string }>('/settings/test-email')
+      setTestEmail({ state: 'sent', msg: t('settings.testEmailSent', { to: res.to }) })
+    } catch (e: any) {
+      setTestEmail({ state: 'error', msg: e?.message ?? t('settings.testEmailFailed') })
+    }
   }
 
   const field = (key: string, label: string, type = 'text') => (
@@ -397,6 +408,13 @@ function SettingsSection() {
 
       <section className="card p-6">
         <h3 className="mb-4 font-semibold">{t('settings.smtp')}</h3>
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <button className="btn-ghost" onClick={sendTestEmail} disabled={testEmail.state === 'sending'}>
+            <Mail size={15} /> {testEmail.state === 'sending' ? t('settings.testEmailSending') : t('settings.testEmail')}
+          </button>
+          {testEmail.state === 'sent' && <span className="text-sm text-success">{testEmail.msg}</span>}
+          {testEmail.state === 'error' && <span className="text-sm text-danger">{testEmail.msg}</span>}
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           {field('SMTP_HOST', t('settings.smtpHost'))}
           {field('SMTP_PORT', t('settings.smtpPort'))}
@@ -406,12 +424,63 @@ function SettingsSection() {
         </div>
       </section>
 
-      <p className="text-xs text-muted">{t('settings.dbNote')}</p>
-
       <div className="flex items-center gap-3">
         <button className="btn-primary" onClick={save}>{t('common.save')}</button>
         {saved && <span className="text-sm text-success">{t('admin.saved')}</span>}
       </div>
+
+      <DatabaseSection />
     </div>
+  )
+}
+
+// DatabaseSection configures an optional external database. The DSN is stored in
+// the primary database and applied on the next restart (the connection is bound
+// at boot), so saving here shows a "restart required" hint.
+function DatabaseSection() {
+  const { t } = useTranslation()
+  const [dsn, setDsn] = useState('')
+  const [usingExternal, setUsingExternal] = useState(false)
+  const [status, setStatus] = useState<{ state: 'idle' | 'saving' | 'saved' | 'error'; msg?: string }>({ state: 'idle' })
+
+  useEffect(() => {
+    api.get<{ externalDsn: string; usingExternal: boolean }>('/settings/db').then((d) => {
+      setDsn(d.externalDsn ?? '')
+      setUsingExternal(d.usingExternal)
+    })
+  }, [])
+
+  async function save() {
+    setStatus({ state: 'saving' })
+    try {
+      await api.patch('/settings/db', { externalDsn: dsn })
+      setStatus({ state: 'saved', msg: t('settings.dbRestartNote') })
+    } catch (e: any) {
+      setStatus({ state: 'error', msg: e?.message ?? 'Erreur' })
+    }
+  }
+
+  return (
+    <section className="card p-6">
+      <h3 className="mb-1 flex items-center gap-2 font-semibold"><Database size={16} /> {t('settings.dbTitle')}</h3>
+      <p className="mb-3 text-xs text-muted">{t('settings.dbHint')}</p>
+      <div className="mb-3">
+        {usingExternal
+          ? <span className="chip text-success">{t('settings.dbUsingExternal')}</span>
+          : <span className="chip text-muted">{t('settings.dbUsingPrimary')}</span>}
+      </div>
+      <label className="label">{t('settings.dbExternalDsn')}</label>
+      <input
+        className="input font-mono text-xs"
+        value={dsn}
+        onChange={(e) => setDsn(e.target.value)}
+        placeholder="host=db.example.com port=5432 user=campmenu password=… dbname=campmenu sslmode=require"
+      />
+      <div className="mt-3 flex items-center gap-3">
+        <button className="btn-primary" onClick={save} disabled={status.state === 'saving'}>{t('common.save')}</button>
+        {status.state === 'saved' && <span className="text-sm text-success">{status.msg}</span>}
+        {status.state === 'error' && <span className="text-sm text-danger">{status.msg}</span>}
+      </div>
+    </section>
   )
 }

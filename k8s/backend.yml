@@ -47,13 +47,15 @@ spec:
             - secretRef: { name: campmenu-secrets }
           volumeMounts:
             - { name: src, mountPath: /workspace }
-        # 2. Wait for PostgreSQL.
+        # 2. Wait for PostgreSQL (host/port from the ConfigMap, not hardcoded).
         - name: wait-for-db
           image: busybox:1.36
           command:
             - sh
             - -c
-            - "until nc -z campmenu-db-rw 5432; do echo waiting for db; sleep 2; done"
+            - 'until nc -z "$DB_HOST" "$DB_PORT"; do echo waiting for db; sleep 2; done'
+          envFrom:
+            - configMapRef: { name: campmenu-config }
         # 3. Compile the static binary.
         - name: build
           image: golang:1.23-alpine
@@ -84,11 +86,17 @@ spec:
             - configMapRef: { name: campmenu-config }
             - secretRef: { name: campmenu-secrets }
           env:
+            # Build the PRIMARY DSN from the configurable host (ConfigMap) + the
+            # CloudNativePG-generated credentials (secret), so the connection is
+            # not tied to a fixed namespace. $(VAR) expands earlier env vars.
+            - name: DB_USER
+              valueFrom: { secretKeyRef: { name: campmenu-db-app, key: username } }
+            - name: DB_PASS
+              valueFrom: { secretKeyRef: { name: campmenu-db-app, key: password } }
+            - name: DB_NAME
+              valueFrom: { secretKeyRef: { name: campmenu-db-app, key: dbname } }
             - name: DATABASE_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: campmenu-db-app
-                  key: uri
+              value: "host=$(DB_HOST) port=$(DB_PORT) user=$(DB_USER) password=$(DB_PASS) dbname=$(DB_NAME) sslmode=disable TimeZone=UTC"
           volumeMounts:
             - { name: app, mountPath: /app }
           readinessProbe:
