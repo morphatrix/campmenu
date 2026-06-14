@@ -1,13 +1,14 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, Check, ChevronRight, Copy, Eye, EyeOff, LogOut, ShoppingCart, SlidersHorizontal, Tent, Users } from 'lucide-react'
+import { CalendarDays, ChevronRight, Eye, EyeOff, LogOut, ShoppingCart, SlidersHorizontal, Tent, Users } from 'lucide-react'
 import { api, ApiError } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useLive } from '../context/LiveContext'
 import { displayName } from '../lib/types'
 import type { Event, EventParticipant, ShoppingLine, User } from '../lib/types'
 import Avatar from '../components/Avatar'
+import UserInfoModal from '../components/UserInfoModal'
 
 const STANDARD = ['Drive', 'Station']
 
@@ -297,43 +298,33 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
 
 function MobileParticipants({ participants }: { participants: EventParticipant[] }) {
   const { t } = useTranslation()
+  const [info, setInfo] = useState<User | null>(null)
   if (participants.length === 0) return <p className="text-center text-muted">{t('mobile.noParticipants')}</p>
   return (
-    <ul className="space-y-2">
-      {participants.map((p) => <ParticipantCard key={p.id} user={p.user!} />)}
-    </ul>
-  )
-}
-
-function ParticipantCard({ user }: { user: User }) {
-  const { t } = useTranslation()
-  const [copied, setCopied] = useState(false)
-  const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email
-
-  async function copyIban() {
-    try {
-      await navigator.clipboard.writeText(user.iban)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch { /* clipboard may be blocked */ }
-  }
-
-  return (
-    <li className="card flex items-center gap-3 p-3">
-      <Avatar user={user} size={44} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold">{fullName}</p>
-        {user.nickname && <p className="truncate text-xs text-muted">« {user.nickname} »</p>}
-        {user.iban ? (
-          <button onClick={copyIban} className="mt-0.5 flex max-w-full items-center gap-1 text-xs text-brand" title={t('mobile.copyIban')}>
-            {copied ? <Check size={13} className="shrink-0" /> : <Copy size={13} className="shrink-0" />}
-            <span className="truncate font-mono">{copied ? t('mobile.ibanCopied') : user.iban}</span>
-          </button>
-        ) : (
-          <p className="text-xs text-muted">{t('mobile.noIban')}</p>
-        )}
-      </div>
-    </li>
+    <>
+      <ul className="space-y-2">
+        {participants.map((p) => {
+          const u = p.user!
+          const fullName = `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || u.email
+          return (
+            <li key={p.id}>
+              <button
+                onClick={() => setInfo(u)}
+                className="card flex w-full items-center gap-3 p-3 text-left transition active:scale-[.99]"
+              >
+                <Avatar user={u} size={44} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{fullName}</span>
+                  {u.nickname && <span className="block truncate text-xs text-muted">« {u.nickname} »</span>}
+                </span>
+                <ChevronRight size={18} className="shrink-0 text-muted" />
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+      {info && <UserInfoModal user={info} onClose={() => setInfo(null)} />}
+    </>
   )
 }
 
