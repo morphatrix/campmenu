@@ -4,6 +4,7 @@ import { UserPlus, X, Users } from 'lucide-react'
 import { api } from '../../lib/api'
 import { displayName } from '../../lib/types'
 import type { Event, User } from '../../lib/types'
+import Avatar from '../Avatar'
 
 export default function ParticipantsPanel({ event, onChange }: { event: Event; onChange: () => void }) {
   const { t } = useTranslation()
@@ -43,6 +44,7 @@ export default function ParticipantsPanel({ event, onChange }: { event: Event; o
                 <li key={p.id} className="flex items-center justify-between rounded-lg bg-surface px-2 py-1 text-sm">
                   <label className="flex items-center gap-2">
                     <input type="checkbox" checked={p.counted} onChange={(e) => toggleCounted(p.userId, e.target.checked)} />
+                    <Avatar user={p.user} size={22} />
                     {displayName(p.user)}
                   </label>
                   <button onClick={() => remove(p.userId)} className="text-danger"><X size={14} /></button>
@@ -55,7 +57,10 @@ export default function ParticipantsPanel({ event, onChange }: { event: Event; o
             <ul className="space-y-1">
               {users.filter((u) => !participantIds.has(u.id)).map((u) => (
                 <li key={u.id} className="flex items-center justify-between rounded-lg px-2 py-1 text-sm">
-                  <span>{displayName(u)} <span className="text-muted">· {u.email}</span></span>
+                  <span className="flex items-center gap-2">
+                    <Avatar user={u} size={22} />
+                    <span>{displayName(u)} <span className="text-muted">· {u.email}</span></span>
+                  </span>
                   <button onClick={() => add(u.id)} className="text-brand"><UserPlus size={14} /></button>
                 </li>
               ))}

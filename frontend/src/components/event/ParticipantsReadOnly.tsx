@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Users } from 'lucide-react'
 import { displayName } from '../../lib/types'
 import type { Event } from '../../lib/types'
+import Avatar from '../Avatar'
 
 // Read-only participant list shown to non-staff users.
 export default function ParticipantsReadOnly({ event }: { event: Event }) {
@@ -18,7 +19,10 @@ export default function ParticipantsReadOnly({ event }: { event: Event }) {
       {open && (
         <ul className="mt-3 flex flex-wrap gap-2">
           {participants.map((p) => (
-            <li key={p.id} className="chip">{displayName(p.user)}</li>
+            <li key={p.id} className="chip flex items-center gap-1.5">
+              <Avatar user={p.user} size={18} />
+              {displayName(p.user)}
+            </li>
           ))}
         </ul>
       )}

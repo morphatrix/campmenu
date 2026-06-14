@@ -1,12 +1,13 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, ChevronRight, Eye, EyeOff, LogOut, ShoppingCart, SlidersHorizontal, Tent } from 'lucide-react'
+import { CalendarDays, Check, ChevronRight, Copy, Eye, EyeOff, LogOut, ShoppingCart, SlidersHorizontal, Tent, Users } from 'lucide-react'
 import { api, ApiError } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useLive } from '../context/LiveContext'
 import { displayName } from '../lib/types'
-import type { Event, EventParticipant, ShoppingLine } from '../lib/types'
+import type { Event, EventParticipant, ShoppingLine, User } from '../lib/types'
+import Avatar from '../components/Avatar'
 
 const STANDARD = ['Drive', 'Station']
 
@@ -127,6 +128,7 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
   const { t } = useTranslation()
   const [event, setEvent] = useState<Event | null>(null)
   const [lines, setLines] = useState<ShoppingLine[]>([])
+  const [tab, setTab] = useState<'courses' | 'participants'>('courses')
   const [showFilters, setShowFilters] = useState(false)
   const [hideBought, setHideBought] = useState(false)
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set())
@@ -184,7 +186,7 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
   function resetFilters() { setHideBought(false); setHiddenSections(new Set()); setBroughtBy('') }
 
   return (
-    <div className="min-h-screen pb-10">
+    <div className="min-h-screen pb-24">
       <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur">
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2 font-semibold text-brand">
@@ -197,6 +199,8 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
           </div>
         </div>
 
+        {tab === 'courses' && (
+        <>
         {/* Quick filters + progress */}
         <div className="flex items-center gap-2 px-3 pb-2">
           <button
@@ -251,10 +255,14 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
             </div>
           </div>
         )}
+        </>
+        )}
       </header>
 
       <main className="mx-auto max-w-md px-3 py-4">
-        {filtered.length === 0 ? (
+        {tab === 'participants' ? (
+          <MobileParticipants participants={participants} />
+        ) : filtered.length === 0 ? (
           <p className="text-center text-muted">{lines.length === 0 ? t('shopping.empty') : '—'}</p>
         ) : (
           <div className="space-y-5">
@@ -271,7 +279,61 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
           </div>
         )}
       </main>
+
+      {/* Bottom tab bar: Courses / Participants */}
+      <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-card/95 backdrop-blur">
+        <button onClick={() => setTab('courses')}
+          className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs font-medium ${tab === 'courses' ? 'text-brand' : 'text-muted'}`}>
+          <ShoppingCart size={20} /> {t('mobile.tabShopping')}
+        </button>
+        <button onClick={() => setTab('participants')}
+          className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs font-medium ${tab === 'participants' ? 'text-brand' : 'text-muted'}`}>
+          <Users size={20} /> {t('mobile.tabParticipants')}
+        </button>
+      </nav>
     </div>
+  )
+}
+
+function MobileParticipants({ participants }: { participants: EventParticipant[] }) {
+  const { t } = useTranslation()
+  if (participants.length === 0) return <p className="text-center text-muted">{t('mobile.noParticipants')}</p>
+  return (
+    <ul className="space-y-2">
+      {participants.map((p) => <ParticipantCard key={p.id} user={p.user!} />)}
+    </ul>
+  )
+}
+
+function ParticipantCard({ user }: { user: User }) {
+  const { t } = useTranslation()
+  const [copied, setCopied] = useState(false)
+  const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email
+
+  async function copyIban() {
+    try {
+      await navigator.clipboard.writeText(user.iban)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch { /* clipboard may be blocked */ }
+  }
+
+  return (
+    <li className="card flex items-center gap-3 p-3">
+      <Avatar user={user} size={44} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-semibold">{fullName}</p>
+        {user.nickname && <p className="truncate text-xs text-muted">« {user.nickname} »</p>}
+        {user.iban ? (
+          <button onClick={copyIban} className="mt-0.5 flex max-w-full items-center gap-1 text-xs text-brand" title={t('mobile.copyIban')}>
+            {copied ? <Check size={13} className="shrink-0" /> : <Copy size={13} className="shrink-0" />}
+            <span className="truncate font-mono">{copied ? t('mobile.ibanCopied') : user.iban}</span>
+          </button>
+        ) : (
+          <p className="text-xs text-muted">{t('mobile.noIban')}</p>
+        )}
+      </div>
+    </li>
   )
 }
 

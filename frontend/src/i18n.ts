@@ -46,6 +46,8 @@ const fr = {
       fullSite: 'Ouvrir le site complet',
       filters: 'Filtres', hideBought: 'Masquer les pris', sections: 'Sections', all: 'Tout',
       broughtBy: 'Ramené par', unassigned: 'Non assigné', reset: 'Réinitialiser', bought: '{{n}}/{{total}} pris',
+      tabShopping: 'Courses', tabParticipants: 'Participants', noParticipants: 'Aucun participant.',
+      copyIban: "Copier l'IBAN", ibanCopied: 'IBAN copié !', noIban: 'Pas d\'IBAN',
     },
     install: {
       title: 'Installer l\'application', subtitle: 'CampMenu s\'installe sur ton téléphone comme une vraie app, sans passer par un store.',
@@ -90,6 +92,7 @@ const fr = {
       title: 'Mon profil', nickname: 'Surnom', iban: 'IBAN', birthDate: 'Date de naissance', shoeSize: 'Pointure', weight: 'Poids (kg)',
       photo: 'Photo (URL)', theme: 'Thème', palette: 'Palette', colorblind: 'Mode daltonien',
       language: 'Langue', save: 'Enregistrer', saved: 'Enregistré',
+      cropTitle: 'Recadrer la photo', cropZoom: 'Zoom',
     },
     themes: { light: 'Clair', dark: 'Sombre', auto: 'Auto' },
     palettes: {
@@ -168,6 +171,8 @@ const en = {
       fullSite: 'Open full site',
       filters: 'Filters', hideBought: 'Hide bought', sections: 'Sections', all: 'All',
       broughtBy: 'Brought by', unassigned: 'Unassigned', reset: 'Reset', bought: '{{n}}/{{total}} done',
+      tabShopping: 'Shopping', tabParticipants: 'Participants', noParticipants: 'No participants.',
+      copyIban: 'Copy IBAN', ibanCopied: 'IBAN copied!', noIban: 'No IBAN',
     },
     install: {
       title: 'Install the app', subtitle: 'CampMenu installs on your phone like a real app, no store needed.',
@@ -212,6 +217,7 @@ const en = {
       title: 'My profile', nickname: 'Nickname', iban: 'IBAN', birthDate: 'Date of birth', shoeSize: 'Shoe size', weight: 'Weight (kg)',
       photo: 'Photo (URL)', theme: 'Theme', palette: 'Palette', colorblind: 'Colorblind mode',
       language: 'Language', save: 'Save', saved: 'Saved',
+      cropTitle: 'Crop photo', cropZoom: 'Zoom',
     },
     themes: { light: 'Light', dark: 'Dark', auto: 'Auto' },
     palettes: {

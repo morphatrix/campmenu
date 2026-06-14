@@ -88,7 +88,7 @@ export default function ProfilePage() {
         </div>
         <div className="sm:col-span-2">
           <label className="label">{t('profile.photo')}</label>
-          <ImageUpload value={form.photoUrl} onChange={(url) => set('photoUrl', url)} />
+          <ImageUpload value={form.photoUrl} onChange={(url) => set('photoUrl', url)} circle />
         </div>
 
         <div>

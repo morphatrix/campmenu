@@ -5,6 +5,7 @@ import { BadgeCheck, Ban, Copy, Database, Eye, KeyRound, Mail, Pencil, Plus, Shi
 import { api } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import Modal from '../components/Modal'
+import Avatar from '../components/Avatar'
 import { isAdmin as roleIsAdmin, isStaff } from '../lib/types'
 import { PALETTES } from '../lib/appearance'
 import type { Invite, Role, User } from '../lib/types'
@@ -187,11 +188,14 @@ function UsersSection({ admin }: { admin: boolean }) {
       <ul className="divide-y divide-border text-sm">
         {users.map((u) => (
           <li key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-            <span className="min-w-0">
-              <span className="font-medium">{u.firstName} {u.lastName}</span>{' '}
-              {u.nickname && <span className="text-muted">« {u.nickname} »</span>}{' '}
-              <span className="text-muted">· {u.email}</span>
-              {!u.emailConfirmed && <span className="chip ml-2 text-accent">non confirmé</span>}
+            <span className="flex min-w-0 items-center gap-2">
+              <Avatar user={u} size={28} />
+              <span className="min-w-0">
+                <span className="font-medium">{u.firstName} {u.lastName}</span>{' '}
+                {u.nickname && <span className="text-muted">« {u.nickname} »</span>}{' '}
+                <span className="text-muted">· {u.email}</span>
+                {!u.emailConfirmed && <span className="chip ml-2 text-accent">non confirmé</span>}
+              </span>
             </span>
             <div className="flex items-center gap-2">
               <span className={`chip ${ROLE_TONE[u.role] ?? ''}`}>{t(`roles.${u.role}`)}</span>

@@ -149,6 +149,15 @@ func (s *Server) handleGetEvent(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "événement introuvable")
 		return
 	}
+	// Privacy: everyone may see a participant's name/nickname/photo/IBAN, but not
+	// their weight, birth date or shoe size — keep those only on the user's own
+	// entry (their full profile stays available via /me, and to staff via /users).
+	self := userIDFrom(r)
+	for i := range event.Participants {
+		if u := event.Participants[i].User; u != nil && u.ID != self {
+			u.Weight, u.BirthDate, u.ShoeSize = nil, nil, nil
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"event":                event,
 		"effectiveParticipants": s.effectiveParticipantCount(id, event.InitialParticipants),
