@@ -24,21 +24,23 @@ export default function ImageCropper({
   const [minScale, setMinScale] = useState(1)
   const [offset, setOffset] = useState<Offset>({ x: 0, y: 0 })
   const drag = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null)
-  const objURL = useRef('')
 
   useEffect(() => {
-    const u = URL.createObjectURL(file)
-    objURL.current = u
-    const im = new Image()
-    im.onload = () => {
-      const cover = Math.max(VIEW / im.naturalWidth, VIEW / im.naturalHeight)
-      setImg(im)
-      setScale(cover)
-      setMinScale(cover)
-      setOffset({ x: (VIEW - im.naturalWidth * cover) / 2, y: (VIEW - im.naturalHeight * cover) / 2 })
+    // Read as a data: URL (allowed by the site CSP, unlike blob:) so both the
+    // preview <img> and the canvas source load.
+    const reader = new FileReader()
+    reader.onload = () => {
+      const im = new Image()
+      im.onload = () => {
+        const cover = Math.max(VIEW / im.naturalWidth, VIEW / im.naturalHeight)
+        setImg(im)
+        setScale(cover)
+        setMinScale(cover)
+        setOffset({ x: (VIEW - im.naturalWidth * cover) / 2, y: (VIEW - im.naturalHeight * cover) / 2 })
+      }
+      im.src = reader.result as string
     }
-    im.src = u
-    return () => URL.revokeObjectURL(u)
+    reader.readAsDataURL(file)
   }, [file])
 
   function clamp(o: Offset, s: number): Offset {
@@ -103,7 +105,7 @@ export default function ImageCropper({
         >
           {img && (
             <img
-              src={objURL.current}
+              src={img.src}
               alt=""
               draggable={false}
               style={{
