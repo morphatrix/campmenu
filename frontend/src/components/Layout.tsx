@@ -47,14 +47,14 @@ export default function Layout() {
   return (
     <div className="min-h-screen">
       {user?.impersonating && (
-        <div className="sticky top-0 z-30 flex items-center justify-center gap-3 bg-accent px-4 py-1.5 text-sm font-medium text-white">
+        <div className="sticky top-0 z-30 flex items-center justify-center gap-3 bg-accent px-4 py-1.5 text-sm font-medium text-white" style={{ paddingTop: 'max(0.375rem, env(safe-area-inset-top))' }}>
           <span>{t('impersonate.banner', { name: displayName(user) })}</span>
           <button onClick={exitImpersonation} className="rounded-md bg-white/20 px-2 py-0.5 hover:bg-white/30">
             {t('impersonate.exit')}
           </button>
         </div>
       )}
-      <header className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2 font-semibold text-brand">
             {site.logoUrl

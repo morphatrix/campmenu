@@ -74,7 +74,7 @@ function MobileLogin() {
 
 function MobileHeader({ title, onLogout, right }: { title: string; onLogout: () => void; right?: ReactNode }) {
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-border bg-card/90 px-4 py-3 backdrop-blur">
+    <header className="sticky top-0 z-20 flex items-center justify-between gap-2 border-b border-border bg-card/90 px-4 py-3 backdrop-blur" style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}>
       <div className="flex min-w-0 items-center gap-2 font-semibold text-brand">
         <ShoppingCart size={20} className="shrink-0" />
         <span className="truncate">{title}</span>
@@ -187,7 +187,7 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
 
   return (
     <div className="min-h-screen pb-24">
-      <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center justify-between gap-2 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2 font-semibold text-brand">
             <ShoppingCart size={20} className="shrink-0" />
@@ -281,7 +281,7 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
       </main>
 
       {/* Bottom tab bar: Courses / Participants */}
-      <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-card/95 backdrop-blur">
+      <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-border bg-card/95 backdrop-blur" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <button onClick={() => setTab('courses')}
           className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs font-medium ${tab === 'courses' ? 'text-brand' : 'text-muted'}`}>
           <ShoppingCart size={20} /> {t('mobile.tabShopping')}

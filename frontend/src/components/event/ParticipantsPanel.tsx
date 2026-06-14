@@ -5,11 +5,13 @@ import { api } from '../../lib/api'
 import { displayName } from '../../lib/types'
 import type { Event, User } from '../../lib/types'
 import Avatar from '../Avatar'
+import UserInfoModal from '../UserInfoModal'
 
 export default function ParticipantsPanel({ event, onChange }: { event: Event; onChange: () => void }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [users, setUsers] = useState<User[]>([])
+  const [info, setInfo] = useState<User | null>(null)
   const participants = event.participants ?? []
   const participantIds = new Set(participants.map((p) => p.userId))
 
@@ -42,11 +44,11 @@ export default function ParticipantsPanel({ event, onChange }: { event: Event; o
             <ul className="space-y-1">
               {participants.map((p) => (
                 <li key={p.id} className="flex items-center justify-between rounded-lg bg-surface px-2 py-1 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input type="checkbox" checked={p.counted} onChange={(e) => toggleCounted(p.userId, e.target.checked)} />
+                  <span className="flex items-center gap-2">
+                    <input type="checkbox" checked={p.counted} onChange={(e) => toggleCounted(p.userId, e.target.checked)} title={t('events.counted')} />
                     <Avatar user={p.user} size={22} />
-                    {displayName(p.user)}
-                  </label>
+                    <button className="hover:underline" onClick={() => p.user && setInfo(p.user)}>{displayName(p.user)}</button>
+                  </span>
                   <button onClick={() => remove(p.userId)} className="text-danger"><X size={14} /></button>
                 </li>
               ))}
@@ -59,7 +61,7 @@ export default function ParticipantsPanel({ event, onChange }: { event: Event; o
                 <li key={u.id} className="flex items-center justify-between rounded-lg px-2 py-1 text-sm">
                   <span className="flex items-center gap-2">
                     <Avatar user={u} size={22} />
-                    <span>{displayName(u)} <span className="text-muted">· {u.email}</span></span>
+                    <button className="hover:underline" onClick={() => setInfo(u)}>{displayName(u)}</button>
                   </span>
                   <button onClick={() => add(u.id)} className="text-brand"><UserPlus size={14} /></button>
                 </li>
@@ -68,6 +70,7 @@ export default function ParticipantsPanel({ event, onChange }: { event: Event; o
           </div>
         </div>
       )}
+      {info && <UserInfoModal user={info} onClose={() => setInfo(null)} />}
     </div>
   )
 }
