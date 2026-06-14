@@ -94,6 +94,14 @@ const fr = {
       language: 'Langue', save: 'Enregistrer', saved: 'Enregistré',
       cropTitle: 'Recadrer la photo', cropZoom: 'Zoom',
     },
+    iban: {
+      title: 'Visibilité de l\'IBAN', subtitle: 'Choisissez qui peut voir votre IBAN.',
+      public: 'Visible par tous', selected: 'Personnes choisies', request: 'Sur demande uniquement',
+      choosePeople: 'Personnes autorisées', authorized: 'Personnes autorisées', revoke: 'Retirer l\'accès',
+      requestAccess: 'Demander l\'accès à l\'IBAN', requestSent: 'Demande envoyée.',
+      requestsTitle: 'Demandes d\'accès IBAN', noRequests: 'Aucune demande en attente.',
+      requestsFrom: '{{name}} demande à voir votre IBAN', accept: 'Accepter', deny: 'Refuser',
+    },
     themes: { light: 'Clair', dark: 'Sombre', auto: 'Auto' },
     palettes: {
       default: 'Indigo', sunset: 'Coucher de soleil', forest: 'Forêt', ocean: 'Océan',
@@ -218,6 +226,14 @@ const en = {
       photo: 'Photo (URL)', theme: 'Theme', palette: 'Palette', colorblind: 'Colorblind mode',
       language: 'Language', save: 'Save', saved: 'Saved',
       cropTitle: 'Crop photo', cropZoom: 'Zoom',
+    },
+    iban: {
+      title: 'IBAN visibility', subtitle: 'Choose who can see your IBAN.',
+      public: 'Visible to everyone', selected: 'Selected people', request: 'On request only',
+      choosePeople: 'Authorized people', authorized: 'Authorized people', revoke: 'Revoke access',
+      requestAccess: 'Request IBAN access', requestSent: 'Request sent.',
+      requestsTitle: 'IBAN access requests', noRequests: 'No pending requests.',
+      requestsFrom: '{{name}} wants to see your IBAN', accept: 'Accept', deny: 'Deny',
     },
     themes: { light: 'Light', dark: 'Dark', auto: 'Auto' },
     palettes: {

@@ -1,7 +1,7 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Smartphone } from 'lucide-react'
+import { Smartphone, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { PALETTES, THEMES } from '../lib/appearance'
@@ -47,7 +47,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="mx-auto max-w-2xl">
+    <div className="mx-auto max-w-2xl space-y-6">
+    <form onSubmit={onSubmit}>
       <div className="mb-6 flex items-center gap-3">
         <h1 className="text-2xl font-bold">{t('profile.title')}</h1>
         {user && <span className="chip text-brand">{t(`roles.${user.role}`)}</span>}
@@ -122,5 +123,95 @@ export default function ProfilePage() {
         </div>
       </div>
     </form>
+    <IbanVisibilitySettings />
+    </div>
+  )
+}
+
+// IbanVisibilitySettings lets the user choose who can see their IBAN: everyone,
+// a selected list, or only on accepted request (with the granted list shown).
+function IbanVisibilitySettings() {
+  const { t } = useTranslation()
+  const { user } = useAuth()
+  const [visibility, setVisibility] = useState('request')
+  const [granted, setGranted] = useState<User[]>([])
+  const [directory, setDirectory] = useState<User[]>([])
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [saved, setSaved] = useState(false)
+
+  async function load() {
+    const a = await api.get<{ visibility: string; granted: User[] }>('/me/iban-access')
+    setVisibility(a.visibility || 'request')
+    setGranted(a.granted ?? [])
+    setSelected(new Set((a.granted ?? []).map((u) => u.id)))
+  }
+  useEffect(() => { load() }, [])
+  useEffect(() => {
+    if (visibility === 'selected' && directory.length === 0) api.get<User[]>('/users/directory').then(setDirectory)
+  }, [visibility])
+
+  async function save() {
+    await api.patch('/me/iban-visibility', {
+      visibility,
+      viewerIds: visibility === 'selected' ? [...selected] : undefined,
+    })
+    setSaved(true)
+    load()
+  }
+  async function revoke(id: string) { await api.del(`/me/iban-grants/${id}`); load() }
+  function toggle(id: string) {
+    setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+    setSaved(false)
+  }
+
+  const fullName = (u: User) => `${u.firstName ?? ''} ${u.lastName ?? ''}`.trim() || u.nickname || u.email
+
+  return (
+    <section className="card p-6">
+      <h2 className="mb-1 text-lg font-semibold">{t('iban.title')}</h2>
+      <p className="mb-4 text-sm text-muted">{t('iban.subtitle')}</p>
+      <select
+        className="input mb-4 sm:w-72"
+        value={visibility}
+        onChange={(e) => { setVisibility(e.target.value); setSaved(false) }}
+      >
+        <option value="public">{t('iban.public')}</option>
+        <option value="selected">{t('iban.selected')}</option>
+        <option value="request">{t('iban.request')}</option>
+      </select>
+
+      {visibility === 'selected' && (
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-semibold uppercase text-muted">{t('iban.choosePeople')}</p>
+          <div className="grid max-h-56 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2">
+            {directory.filter((u) => u.id !== user?.id).map((u) => (
+              <label key={u.id} className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm hover:bg-surface">
+                <input type="checkbox" checked={selected.has(u.id)} onChange={() => toggle(u.id)} />
+                {fullName(u)}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {visibility !== 'selected' && granted.length > 0 && (
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-semibold uppercase text-muted">{t('iban.authorized')}</p>
+          <ul className="space-y-1">
+            {granted.map((u) => (
+              <li key={u.id} className="flex items-center justify-between rounded-lg bg-surface px-2 py-1 text-sm">
+                <span>{fullName(u)}</span>
+                <button className="text-danger" onClick={() => revoke(u.id)} title={t('iban.revoke')}><X size={14} /></button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3">
+        <button className="btn-primary" onClick={save}>{t('profile.save')}</button>
+        {saved && <span className="text-sm text-success">{t('profile.saved')}</span>}
+      </div>
+    </section>
   )
 }

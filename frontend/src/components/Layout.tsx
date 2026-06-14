@@ -6,6 +6,7 @@ import { api, resolveAsset } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { displayName, isAdmin, isStaff } from '../lib/types'
 import type { SiteConfig } from '../lib/types'
+import IbanRequestsBell from './IbanRequestsBell'
 
 export default function Layout() {
   const { t } = useTranslation()
@@ -79,6 +80,7 @@ export default function Layout() {
                 <span className="hidden sm:inline">{it.label}</span>
               </NavLink>
             ))}
+            <IbanRequestsBell />
             <button onClick={handleLogout} className="ml-1 rounded-lg px-3 py-1.5 text-sm text-muted hover:text-danger" title={t('nav.logout')}>
               <LogOut size={16} />
             </button>

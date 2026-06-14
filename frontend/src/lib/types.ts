@@ -26,6 +26,8 @@ export interface User {
   lastName: string
   nickname: string
   iban: string
+  ibanVisibility?: string // 'public' | 'selected' | 'request'
+  ibanHidden?: boolean    // true when the IBAN was withheld from the viewer
   birthDate?: string | null
   shoeSize?: number | null
   weight?: number | null
@@ -244,6 +246,14 @@ export interface Invite {
   revoked: boolean
   usedAt?: string | null
   expiresAt?: string | null
+}
+
+export interface IbanRequest {
+  id: string
+  ownerId: string
+  requesterId: string
+  status: string
+  requester?: User
 }
 
 export interface SiteConfig {

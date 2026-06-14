@@ -73,6 +73,16 @@ func (s *Server) Router() http.Handler {
 			r.Get("/me", s.handleMe)
 			r.Patch("/me", s.handleUpdateMe)
 
+			// IBAN visibility + access requests.
+			r.Get("/users/directory", s.handleDirectory)
+			r.Get("/me/iban-access", s.handleGetIBANAccess)
+			r.Patch("/me/iban-visibility", s.handleSetIBANVisibility)
+			r.Delete("/me/iban-grants/{viewerId}", s.handleRevokeIBANGrant)
+			r.Post("/users/{id}/iban-request", s.handleCreateIBANRequest)
+			r.Get("/iban-requests", s.handleListIBANRequests)
+			r.Post("/iban-requests/{id}/accept", s.handleAcceptIBANRequest)
+			r.Post("/iban-requests/{id}/deny", s.handleDenyIBANRequest)
+
 			// Real-time updates (Server-Sent Events).
 			r.Get("/stream", s.handleStream)
 

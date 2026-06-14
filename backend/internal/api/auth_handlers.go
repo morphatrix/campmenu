@@ -387,6 +387,13 @@ func (s *Server) handleUpdateMe(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleListUsers(w http.ResponseWriter, r *http.Request) {
 	var users []models.User
 	s.DB.Order("first_name asc").Find(&users)
+	// Apply IBAN visibility (staff aren't exempt — an IBAN is the owner's to share).
+	self := userIDFrom(r)
+	ptrs := make([]*models.User, len(users))
+	for i := range users {
+		ptrs[i] = &users[i]
+	}
+	s.redactIBANs(self, ptrs)
 	writeJSON(w, http.StatusOK, users)
 }
 

@@ -9,6 +9,7 @@ import { displayName } from '../lib/types'
 import type { Event, EventParticipant, ShoppingLine, User } from '../lib/types'
 import Avatar from '../components/Avatar'
 import UserInfoModal from '../components/UserInfoModal'
+import IbanRequestsBell from '../components/IbanRequestsBell'
 
 const STANDARD = ['Drive', 'Station']
 
@@ -82,6 +83,7 @@ function MobileHeader({ title, onLogout, right }: { title: string; onLogout: () 
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {right}
+        <IbanRequestsBell />
         <button onClick={onLogout} className="rounded-lg px-2 py-1 text-muted hover:text-danger"><LogOut size={18} /></button>
       </div>
     </header>
@@ -196,6 +198,7 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <button onClick={onBack} className="rounded-lg px-2 py-1 text-xs text-muted hover:text-fg">{t('mobile.back')}</button>
+            <IbanRequestsBell />
             <button onClick={onLogout} className="rounded-lg px-2 py-1 text-muted hover:text-danger"><LogOut size={18} /></button>
           </div>
         </div>

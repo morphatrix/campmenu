@@ -53,6 +53,9 @@ type User struct {
 	ColorPalette      string     `gorm:"default:'default'" json:"colorPalette"` // default | palette2..4
 	Nickname          string     `json:"nickname"`
 	IBAN              string     `json:"iban"`
+	// IBANVisibility controls who may see this user's IBAN: "public" (everyone),
+	// "selected" (an explicit grant list) or "request" (granted on accepted ask).
+	IBANVisibility string `gorm:"column:iban_visibility;default:'request'" json:"ibanVisibility"`
 	ColorblindMode    bool       `gorm:"default:false" json:"colorblindMode"`
 	Language          string     `gorm:"default:'fr'" json:"language"`
 	ResetToken        string     `gorm:"index" json:"-"`
@@ -60,6 +63,26 @@ type User struct {
 	// Impersonating is transient (not stored): set on /me when an admin is
 	// currently impersonating this user.
 	Impersonating bool `gorm:"-" json:"impersonating"`
+	// IBANHidden is transient: set true when the IBAN was withheld from the
+	// viewer (so the UI can offer to request access).
+	IBANHidden bool `gorm:"-" json:"ibanHidden"`
+}
+
+// IBANGrant authorizes ViewerID to see OwnerID's IBAN (populated by an explicit
+// "selected" list or by an accepted access request).
+type IBANGrant struct {
+	Base
+	OwnerID  uuid.UUID `gorm:"type:uuid;index;uniqueIndex:idx_iban_owner_viewer" json:"ownerId"`
+	ViewerID uuid.UUID `gorm:"type:uuid;uniqueIndex:idx_iban_owner_viewer" json:"viewerId"`
+}
+
+// IBANRequest is a pending/answered ask from RequesterID to see OwnerID's IBAN.
+type IBANRequest struct {
+	Base
+	OwnerID     uuid.UUID `gorm:"type:uuid;index;uniqueIndex:idx_iban_req" json:"ownerId"`
+	RequesterID uuid.UUID `gorm:"type:uuid;uniqueIndex:idx_iban_req" json:"requesterId"`
+	Status      string    `gorm:"default:'pending'" json:"status"` // pending | accepted | denied
+	Requester   *User     `json:"requester,omitempty"`
 }
 
 // Image stores an uploaded picture (recipe/profile) directly in PostgreSQL,
@@ -356,6 +379,8 @@ func AllModels() []any {
 		&AppSetting{},
 		&Image{},
 		&User{},
+		&IBANGrant{},
+		&IBANRequest{},
 		&Invite{},
 		&Event{},
 		&EventParticipant{},
