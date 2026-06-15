@@ -156,11 +156,6 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 		l.Source = e.Source
 		l.Observation = e.Observation
 		l.BoughtQuantity = e.BoughtQuantity
-		// Legacy rows stored only a "bought" boolean: treat them as fully bought
-		// of whatever the total currently is.
-		if e.Bought && e.BoughtQuantity == 0 {
-			l.BoughtQuantity = l.Quantity
-		}
 		l.BroughtBy = e.BroughtBy
 		if l.IngredientID == nil {
 			l.IngredientID = e.IngredientID
