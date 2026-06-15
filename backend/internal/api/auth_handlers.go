@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -35,6 +36,17 @@ func (s *Server) setAuthCookie(w http.ResponseWriter, r *http.Request, token str
 		SameSite: http.SameSiteLaxMode,
 		Expires:  time.Now().Add(s.Cfg.JWTExpiry),
 	})
+}
+
+// sendConfirmationOrLog sends the email-confirmation link and, on failure, logs
+// the error plus the link so a misconfigured SMTP doesn't silently leave a user
+// stranded (the link can be recovered from the logs or resent from the admin UI).
+func (s *Server) sendConfirmationOrLog(email, token string) {
+	if err := s.Mailer.SendConfirmation(email, token); err != nil {
+		slog.Error("confirmation email failed to send",
+			"email", email, "error", err,
+			"link", s.Settings.Get(settings.KeyAppURL)+"/confirm/"+token)
+	}
 }
 
 // ---- invitations ----
@@ -200,7 +212,7 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if confirmRequired {
-		_ = s.Mailer.SendConfirmation(user.Email, user.ConfirmationToken)
+		s.sendConfirmationOrLog(user.Email, user.ConfirmationToken)
 		writeJSON(w, http.StatusCreated, map[string]any{"emailConfirmRequired": true})
 		return
 	}
@@ -481,7 +493,7 @@ func (s *Server) handleResendConfirmation(w http.ResponseWriter, r *http.Request
 		user.ConfirmationToken = auth.RandomToken(20)
 		s.DB.Model(&user).Update("confirmation_token", user.ConfirmationToken)
 	}
-	_ = s.Mailer.SendConfirmation(user.Email, user.ConfirmationToken)
+	s.sendConfirmationOrLog(user.Email, user.ConfirmationToken)
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
