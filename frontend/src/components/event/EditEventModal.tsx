@@ -1,16 +1,20 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Trash2 } from 'lucide-react'
 import { api } from '../../lib/api'
+import { useAuth } from '../../context/AuthContext'
+import { isAdmin } from '../../lib/types'
 import Modal from '../Modal'
 import ImageUpload from '../ImageUpload'
 import type { Event } from '../../lib/types'
 
 export default function EditEventModal({
-  event, onClose, onSaved,
+  event, onClose, onSaved, onDeleted,
 }: {
-  event: Event; onClose: () => void; onSaved: () => void
+  event: Event; onClose: () => void; onSaved: () => void; onDeleted: () => void
 }) {
   const { t } = useTranslation()
+  const { user } = useAuth()
   const [name, setName] = useState(event.name)
   const [startDate, setStart] = useState(event.startDate.slice(0, 10))
   const [endDate, setEnd] = useState(event.endDate.slice(0, 10))
@@ -36,6 +40,12 @@ export default function EditEventModal({
       venueInfo,
     })
     onSaved()
+  }
+
+  async function remove() {
+    if (!confirm(t('common.confirmDelete', { name: event.name }))) return
+    await api.del(`/events/${event.id}`)
+    onDeleted()
   }
 
   return (
@@ -86,9 +96,16 @@ export default function EditEventModal({
           </div>
         </div>
       </div>
-      <div className="mt-4 flex justify-end gap-2">
-        <button className="btn-ghost" onClick={onClose}>{t('common.cancel')}</button>
-        <button className="btn-primary" onClick={save}>{t('common.save')}</button>
+      <div className="mt-4 flex items-center justify-between gap-2">
+        {isAdmin(user) ? (
+          <button className="btn-ghost text-danger" onClick={remove}>
+            <Trash2 size={15} /> {t('events.delete')}
+          </button>
+        ) : <span />}
+        <div className="flex gap-2">
+          <button className="btn-ghost" onClick={onClose}>{t('common.cancel')}</button>
+          <button className="btn-primary" onClick={save}>{t('common.save')}</button>
+        </div>
       </div>
     </Modal>
   )

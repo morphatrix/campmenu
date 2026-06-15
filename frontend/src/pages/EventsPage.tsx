@@ -1,12 +1,12 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, Info, Plus, Trash2, Users } from 'lucide-react'
+import { CalendarDays, Info, Plus, Users } from 'lucide-react'
 import { api, resolveAsset } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import ImageUpload from '../components/ImageUpload'
 import VenueInfoModal, { hasVenueInfo } from '../components/event/VenueInfoModal'
-import { isAdmin, isStaff } from '../lib/types'
+import { isStaff } from '../lib/types'
 import type { Event } from '../lib/types'
 
 function dayCount(start: string, end: string): number {
@@ -25,12 +25,6 @@ export default function EventsPage() {
     setEvents(await api.get<Event[]>('/events'))
   }
   useEffect(() => { load() }, [])
-
-  async function remove(ev: Event) {
-    if (!confirm(t('common.confirmDelete', { name: ev.name }))) return
-    await api.del(`/events/${ev.id}`)
-    load()
-  }
 
   return (
     <div>
@@ -63,15 +57,6 @@ export default function EventsPage() {
                   title={t('venue.button')}
                 >
                   <Info size={16} />
-                </button>
-              )}
-              {isAdmin(user) && (
-                <button
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); remove(ev) }}
-                  className="absolute left-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-card/80 text-danger backdrop-blur hover:bg-card"
-                  title={t('common.delete')}
-                >
-                  <Trash2 size={16} />
                 </button>
               )}
               <div className={`absolute inset-x-0 bottom-0 p-4 ${ev.photoUrl ? 'bg-card/55 backdrop-blur-md' : ''}`}>

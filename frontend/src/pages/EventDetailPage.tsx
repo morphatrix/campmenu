@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Info, Pencil } from 'lucide-react'
 import { api } from '../lib/api'
@@ -24,6 +24,7 @@ interface EventResponse {
 
 export default function EventDetailPage() {
   const { id = '' } = useParams()
+  const navigate = useNavigate()
   const { t } = useTranslation()
   const { user } = useAuth()
   const isAdmin = isStaff(user) // staff (admin or collaborator) manage events
@@ -88,7 +89,7 @@ export default function EventDetailPage() {
         {tab?.kind === 'SHOPPING' && <ShoppingTab event={event} />}
       </div>
 
-      {editing && <EditEventModal event={event} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); load() }} />}
+      {editing && <EditEventModal event={event} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); load() }} onDeleted={() => navigate('/')} />}
       {showVenue && <VenueInfoModal event={event} onClose={() => setShowVenue(false)} />}
     </div>
   )
