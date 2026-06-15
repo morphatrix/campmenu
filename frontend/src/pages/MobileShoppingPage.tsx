@@ -150,7 +150,12 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
   useLive(loadLines)
 
   async function update(line: ShoppingLine, patch: ShoppingPatch) {
-    setLines((ls) => ls.map((l) => (l === line ? { ...l, ...patch } : l)))
+    setLines((ls) => ls.map((l) => {
+      if (l !== line) return l
+      const m = { ...l, ...patch }
+      if (patch.boughtQuantity !== undefined) m.bought = l.quantity > 0 && patch.boughtQuantity >= l.quantity
+      return m
+    }))
     await api.patch(`/events/${eventId}/shopping`, {
       section: line.section, name: line.name, unit: line.unit, ingredientId: line.ingredientId ?? null, ...patch,
     })
@@ -358,10 +363,13 @@ function MobileItem({ line, participants, onUpdate }: { line: ShoppingLine; part
   return (
     <div className={`card p-3 ${line.bought ? 'opacity-60' : ''}`}>
       <div className="flex items-center gap-3">
-        <input type="checkbox" className="h-6 w-6 shrink-0 accent-brand" checked={line.bought} onChange={(e) => onUpdate({ bought: e.target.checked })} />
+        <input type="checkbox" className="h-6 w-6 shrink-0 accent-brand" checked={line.bought} onChange={(e) => onUpdate({ boughtQuantity: e.target.checked ? line.quantity : 0 })} />
         <button className="min-w-0 flex-1 text-left" onClick={() => setOpen((v) => !v)}>
           <span className={`block font-medium ${line.bought ? 'line-through' : ''}`}>{line.name}</span>
           <span className="text-xs text-muted">{line.quantity} {line.unit}{supplyLabel ? ` · ${supplyLabel}` : ''}{line.observation ? ` · ${line.observation}` : ''}</span>
+          {line.boughtQuantity > 0 && line.boughtQuantity < line.quantity && (
+            <span className="block text-xs text-accent">{t('shopping.remaining', { n: Math.round((line.quantity - line.boughtQuantity) * 100) / 100, unit: line.unit })}</span>
+          )}
         </button>
         <ChevronRight size={18} className={`shrink-0 text-muted transition ${open ? 'rotate-90' : ''}`} onClick={() => setOpen((v) => !v)} />
       </div>

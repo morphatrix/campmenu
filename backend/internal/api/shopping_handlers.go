@@ -16,12 +16,13 @@ type shoppingLine struct {
 	Section      string     `json:"section"`
 	Name         string     `json:"name"`
 	Unit         string     `json:"unit"`
-	Quantity     float64    `json:"quantity"`
-	IngredientID *uuid.UUID `json:"ingredientId"`
-	Source       string     `json:"source"`
-	Observation  string     `json:"observation"`
-	Bought       bool       `json:"bought"`
-	BroughtBy    *uuid.UUID `json:"broughtBy"`
+	Quantity       float64    `json:"quantity"`
+	IngredientID   *uuid.UUID `json:"ingredientId"`
+	Source         string     `json:"source"`
+	Observation    string     `json:"observation"`
+	Bought         bool       `json:"bought"`         // derived: bought quantity covers the total
+	BoughtQuantity float64    `json:"boughtQuantity"` // how much is already bought
+	BroughtBy      *uuid.UUID `json:"broughtBy"`
 }
 
 func lineKey(section, name, unit string) string {
@@ -154,7 +155,12 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 		}
 		l.Source = e.Source
 		l.Observation = e.Observation
-		l.Bought = e.Bought
+		l.BoughtQuantity = e.BoughtQuantity
+		// Legacy rows stored only a "bought" boolean: treat them as fully bought
+		// of whatever the total currently is.
+		if e.Bought && e.BoughtQuantity == 0 {
+			l.BoughtQuantity = l.Quantity
+		}
 		l.BroughtBy = e.BroughtBy
 		if l.IngredientID == nil {
 			l.IngredientID = e.IngredientID
@@ -164,6 +170,12 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 	out := make([]shoppingLine, 0, len(agg))
 	for _, l := range agg {
 		l.Quantity = math.Round(l.Quantity*100) / 100
+		l.BoughtQuantity = math.Round(l.BoughtQuantity*100) / 100
+		if l.BoughtQuantity > l.Quantity {
+			l.BoughtQuantity = l.Quantity
+		}
+		// Fully bought only when the bought quantity covers the current total.
+		l.Bought = l.Quantity > 0 && l.BoughtQuantity >= l.Quantity
 		out = append(out, *l)
 	}
 	return out
@@ -189,7 +201,7 @@ type updateShoppingReq struct {
 	IngredientID   *uuid.UUID `json:"ingredientId"`
 	Source         *string    `json:"source"`
 	Observation    *string    `json:"observation"`
-	Bought         *bool      `json:"bought"`
+	BoughtQuantity *float64   `json:"boughtQuantity"`
 	BroughtBy      *uuid.UUID `json:"broughtBy"`
 	ClearBroughtBy bool       `json:"clearBroughtBy"`
 }
@@ -227,8 +239,14 @@ func (s *Server) handleUpdateShoppingLine(w http.ResponseWriter, r *http.Request
 	if req.Observation != nil {
 		updates["observation"] = *req.Observation
 	}
-	if req.Bought != nil {
-		updates["bought"] = *req.Bought
+	if req.BoughtQuantity != nil {
+		bq := *req.BoughtQuantity
+		if bq < 0 {
+			bq = 0
+		}
+		updates["bought_quantity"] = bq
+		// Keep the legacy boolean consistent so the migration fallback never fires.
+		updates["bought"] = bq > 0
 	}
 	if req.ClearBroughtBy {
 		updates["brought_by"] = nil

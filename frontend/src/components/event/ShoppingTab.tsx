@@ -23,7 +23,12 @@ export default function ShoppingTab({ event }: { event: Event }) {
   useLive(load)
 
   async function update(line: ShoppingLine, patch: ShoppingPatch) {
-    setLines((ls) => ls.map((l) => (l === line ? { ...l, ...patch } : l)))
+    setLines((ls) => ls.map((l) => {
+      if (l !== line) return l
+      const m = { ...l, ...patch }
+      if (patch.boughtQuantity !== undefined) m.bought = l.quantity > 0 && patch.boughtQuantity >= l.quantity
+      return m
+    }))
     await api.patch(`/events/${event.id}/shopping`, {
       section: line.section, name: line.name, unit: line.unit, ingredientId: line.ingredientId ?? null, ...patch,
     })
@@ -63,11 +68,16 @@ export default function ShoppingTab({ event }: { event: Event }) {
                 {items.map((line, i) => (
                   <tr key={`${section}|${line.name}|${line.unit}|${i}`} className={`border-t border-border ${line.bought ? 'opacity-50' : ''}`}>
                     <td className="p-2 text-center">
-                      <input type="checkbox" checked={line.bought} onChange={(e) => update(line, { bought: e.target.checked })} title={t('shopping.bought')} />
+                      <input type="checkbox" checked={line.bought} onChange={(e) => update(line, { boughtQuantity: e.target.checked ? line.quantity : 0 })} title={t('shopping.bought')} />
                     </td>
                     <td className="p-2 font-medium">{line.name}</td>
                     <td className="p-2 text-right tabular-nums">{line.quantity}</td>
-                    <td className="p-2 pl-1 text-left text-muted">{line.unit}</td>
+                    <td className="p-2 pl-1 text-left text-muted">
+                      {line.unit}
+                      {line.boughtQuantity > 0 && line.boughtQuantity < line.quantity && (
+                        <span className="ml-1 text-xs text-accent">{t('shopping.remaining', { n: Math.round((line.quantity - line.boughtQuantity) * 100) / 100, unit: line.unit })}</span>
+                      )}
+                    </td>
                     <td className="p-2">
                       <SupplySelect line={line} participants={participants} onUpdate={(patch) => update(line, patch)} />
                     </td>

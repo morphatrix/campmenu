@@ -362,7 +362,11 @@ type ShoppingEntry struct {
 	Source       string     `json:"source"`      // Drive | Station | Ramené par X | ...
 	Observation  string     `json:"observation"` // free text
 	Bought       bool       `gorm:"default:false" json:"bought"`
-	BroughtBy    *uuid.UUID `gorm:"type:uuid" json:"broughtBy"`
+	// BoughtQuantity is how much has already been bought. A line is "fully bought"
+	// only when this reaches the (computed) total, so quantity added later from a
+	// new recipe stays unchecked until it too is bought.
+	BoughtQuantity float64    `gorm:"default:0" json:"boughtQuantity"`
+	BroughtBy      *uuid.UUID `gorm:"type:uuid" json:"broughtBy"`
 }
 
 // AppSetting is a runtime-editable configuration entry (key/value), overriding

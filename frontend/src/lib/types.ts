@@ -225,6 +225,7 @@ export interface ShoppingLine {
   source: string
   observation: string
   bought: boolean
+  boughtQuantity: number
   broughtBy?: string | null
 }
 
