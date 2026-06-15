@@ -1,4 +1,5 @@
 import { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 // Simple centered modal with a backdrop. Click outside or the X to close.
@@ -16,7 +17,10 @@ export default function Modal({
   // Scroll lives on the outer container; the inner flex uses min-h-full so the
   // modal is centered when short but, when taller than the viewport, grows and
   // stays fully scrollable from the very top (avoids the items-center clipping bug).
-  return (
+  // Render through a portal to <body>: a sticky/blurred header (backdrop-filter)
+  // would otherwise become the containing block for this fixed overlay and clip
+  // it to the header instead of the viewport.
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50" onClick={onClose}>
       <div className="flex min-h-full items-center justify-center p-4">
         <div
@@ -32,6 +36,7 @@ export default function Modal({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

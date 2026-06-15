@@ -99,7 +99,7 @@ export default function EditEventModal({
       <div className="mt-4 flex items-center justify-between gap-2">
         {isAdmin(user) ? (
           <button className="btn-ghost text-danger" onClick={remove}>
-            <Trash2 size={15} /> {t('events.delete')}
+            <Trash2 size={15} /> {t('events.deleteEvent')}
           </button>
         ) : <span />}
         <div className="flex gap-2">
