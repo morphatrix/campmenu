@@ -5,6 +5,7 @@ import { Info, Pencil } from 'lucide-react'
 import { api } from '../lib/api'
 import { useLive } from '../context/LiveContext'
 import { useAuth } from '../context/AuthContext'
+import { useActiveEvent } from '../context/ActiveEventContext'
 import { isStaff } from '../lib/types'
 import type { Event, EventTab } from '../lib/types'
 import TabBar from '../components/event/TabBar'
@@ -27,6 +28,7 @@ export default function EventDetailPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { user } = useAuth()
+  const { setActive } = useActiveEvent()
   const isAdmin = isStaff(user) // staff (admin or collaborator) manage events
   const [data, setData] = useState<EventResponse | null>(null)
   const [activeTab, setActiveTab] = useState<string>('')
@@ -41,6 +43,11 @@ export default function EventDetailPage() {
 
   useEffect(() => { load() }, [load])
   useLive(load)
+
+  // Mark this event as the active one (persists across navigation to other sections).
+  useEffect(() => {
+    if (data?.event) setActive({ id: data.event.id, name: data.event.name })
+  }, [data?.event?.id, data?.event?.name, setActive])
 
   if (!data) return <p className="text-muted">{t('common.loading')}</p>
 

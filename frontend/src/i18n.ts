@@ -21,7 +21,7 @@ const fr = {
     },
     events: {
       title: 'Événements', create: 'Nouvel événement', name: 'Nom', start: 'Début', end: 'Fin',
-      participants: 'Participants', type: 'Type', none: 'Aucun événement pour le moment.', counted: 'Compté dans les quantités', deleteEvent: 'Supprimer l\'événement',
+      participants: 'Participants', type: 'Type', none: 'Aucun événement pour le moment.', counted: 'Compté dans les quantités', deleteEvent: 'Supprimer l\'événement', leave: 'Quitter',
       days: '{{count}} jour', days_plural: '{{count}} jours',
       edit: "Modifier l'événement", photo: 'Photo de vignette', tabsLabel: 'Onglets à inclure',
       includeMenus: 'Menus', includeBreakfast: 'Petit-déjeuner', includeSlopes: 'Sur les pistes', includeLocations: 'Locations',
@@ -154,7 +154,7 @@ const en = {
     },
     events: {
       title: 'Events', create: 'New event', name: 'Name', start: 'Start', end: 'End',
-      participants: 'Participants', type: 'Type', none: 'No events yet.', counted: 'Counted in quantities', deleteEvent: 'Delete event',
+      participants: 'Participants', type: 'Type', none: 'No events yet.', counted: 'Counted in quantities', deleteEvent: 'Delete event', leave: 'Leave',
       days: '{{count}} day', days_plural: '{{count}} days',
       edit: 'Edit event', photo: 'Cover photo', tabsLabel: 'Tabs to include',
       includeMenus: 'Menus', includeBreakfast: 'Breakfast', includeSlopes: 'On the slopes', includeLocations: 'Locations',

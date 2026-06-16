@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from './context/AuthContext'
+import { ActiveEventProvider } from './context/ActiveEventContext'
 import { applyAppearance } from './lib/appearance'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
@@ -49,7 +50,9 @@ export default function App() {
       <Route
         element={
           <Protected>
-            <Layout />
+            <ActiveEventProvider>
+              <Layout />
+            </ActiveEventProvider>
           </Protected>
         }
       >

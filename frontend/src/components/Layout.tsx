@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, BookOpen, Martini, ListChecks, User as UserIcon, Shield, LogOut, Tent } from 'lucide-react'
+import { CalendarDays, BookOpen, Martini, ListChecks, User as UserIcon, Shield, LogOut, Tent, X } from 'lucide-react'
 import { api, resolveAsset } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { useActiveEvent } from '../context/ActiveEventContext'
 import { displayName, isAdmin, isStaff } from '../lib/types'
 import type { SiteConfig } from '../lib/types'
 import IbanRequestsBell from './IbanRequestsBell'
@@ -11,7 +12,13 @@ import IbanRequestsBell from './IbanRequestsBell'
 export default function Layout() {
   const { t } = useTranslation()
   const { user, logout, stopImpersonate } = useAuth()
+  const { active, setActive } = useActiveEvent()
   const navigate = useNavigate()
+
+  function leaveEvent() {
+    setActive(null)
+    navigate('/')
+  }
 
   // Branding (site name + logo) comes from the public /config endpoint so it
   // reflects the admin settings instead of a hardcoded name/icon.
@@ -86,6 +93,19 @@ export default function Layout() {
             </button>
           </nav>
         </div>
+        {active && (
+          <div className="border-t border-border bg-surface/60">
+            <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-1.5 text-sm">
+              <Link to={`/events/${active.id}`} className="flex min-w-0 items-center gap-1.5 font-medium text-brand hover:underline">
+                <CalendarDays size={14} className="shrink-0" />
+                <span className="truncate">{active.name}</span>
+              </Link>
+              <button onClick={leaveEvent} className="ml-auto flex shrink-0 items-center gap-1 text-xs text-muted hover:text-danger">
+                <X size={13} /> {t('events.leave')}
+              </button>
+            </div>
+          </div>
+        )}
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6">
         <Outlet />
