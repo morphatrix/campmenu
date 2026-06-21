@@ -52,6 +52,7 @@ const (
 )
 
 var (
+	reScriptBlock = regexp.MustCompile(`(?is)<script[^>]*>(.*?)</script>`)
 	reScriptStyle = regexp.MustCompile(`(?is)<(?:script|style|noscript|svg|head)\b[^>]*>.*?</\s*(?:script|style|noscript|svg|head)\s*>`)
 	reComment     = regexp.MustCompile(`(?s)<!--.*?-->`)
 	reTag         = regexp.MustCompile(`(?s)<[^>]+>`)
@@ -86,7 +87,17 @@ func FetchAndClean(ctx context.Context, url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	text := string(raw)
+	full := string(raw)
+	// Most recipe sites embed a schema.org/Recipe as JSON-LD. When present it is
+	// tiny and already structured — far better signal (and far fewer tokens) than
+	// the whole page, so prefer it.
+	if ld := extractRecipeJSONLD(full); ld != "" {
+		if len(ld) > maxPageChars {
+			ld = ld[:maxPageChars]
+		}
+		return ld, nil
+	}
+	text := full
 	text = reScriptStyle.ReplaceAllString(text, " ")
 	text = reComment.ReplaceAllString(text, " ")
 	text = reTag.ReplaceAllString(text, "\n")
@@ -109,6 +120,18 @@ func FetchAndClean(ctx context.Context, url string) (string, error) {
 		return "", fmt.Errorf("aucun contenu exploitable sur la page")
 	}
 	return text, nil
+}
+
+// extractRecipeJSONLD returns the content of the first <script> block that looks
+// like a schema.org/Recipe (contains recipeIngredient), or "" if none.
+func extractRecipeJSONLD(rawHTML string) string {
+	for _, m := range reScriptBlock.FindAllStringSubmatch(rawHTML, -1) {
+		c := strings.TrimSpace(m[1])
+		if strings.Contains(c, "recipeIngredient") {
+			return c
+		}
+	}
+	return ""
 }
 
 const systemPrompt = `Tu extrais des recettes de cuisine. Réponds UNIQUEMENT avec du JSON minifié valide, sans texte ni balises Markdown, correspondant exactement à ce schéma :
