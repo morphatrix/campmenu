@@ -204,7 +204,9 @@ function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial
     setProgress(8)
     // No real percentage is available from an LLM call, so advance smoothly and
     // snap to 100% on completion.
-    const timer = setInterval(() => setProgress((p) => (p < 90 ? Math.min(90, p + Math.random() * 7 + 2) : p)), 700)
+    // Asymptotic climb toward 95% — a local model can take minutes, so keep it
+    // visibly alive instead of stalling at a fixed value.
+    const timer = setInterval(() => setProgress((p) => (p < 95 ? p + Math.max(0.4, (95 - p) * 0.04) : p)), 900)
     try {
       const res = await api.post<{ ok: boolean; draft?: ImportDraft; error?: string }>('/recipes/import', { url: importUrl.trim() })
       if (res.ok && res.draft) {

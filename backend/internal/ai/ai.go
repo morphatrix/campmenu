@@ -46,9 +46,9 @@ type Draft struct {
 
 const (
 	fetchTimeout = 20 * time.Second
-	aiTimeout    = 90 * time.Second
-	maxPageChars = 14000
-	maxBodyBytes = 3 << 20 // 3 MiB
+	aiTimeout    = 240 * time.Second // local models can be slow (CPU); allow generous time
+	maxPageChars = 9000              // keep the prompt small enough for ~4k-context local models
+	maxBodyBytes = 3 << 20           // 3 MiB
 )
 
 var (
