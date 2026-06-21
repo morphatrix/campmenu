@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { BadgeCheck, Ban, Copy, Database, Eye, KeyRound, Mail, Pencil, Plus, ShieldCheck, Trash2, UserCog } from 'lucide-react'
+import { BadgeCheck, Ban, Copy, Database, Eye, KeyRound, Loader2, Mail, Pencil, Plus, ShieldCheck, Sparkles, Trash2, UserCog } from 'lucide-react'
 import { api } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import Modal from '../components/Modal'
@@ -339,6 +339,8 @@ function SettingsSection() {
   const [s, setS] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
   const [testEmail, setTestEmail] = useState<{ state: 'idle' | 'sending' | 'sent' | 'error'; msg?: string }>({ state: 'idle' })
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiTest, setAiTest] = useState<{ state: 'idle' | 'testing' | 'done' | 'error'; text?: string }>({ state: 'idle' })
 
   useEffect(() => {
     api.get<Record<string, string>>('/settings').then(setS)
@@ -366,6 +368,17 @@ function SettingsSection() {
       }
     } catch (e: any) {
       setTestEmail({ state: 'error', msg: e?.message ?? t('settings.testEmailFailed') })
+    }
+  }
+
+  async function testAI() {
+    setAiTest({ state: 'testing' })
+    try {
+      const res = await api.post<{ ok: boolean; response?: string; error?: string }>('/settings/ai-test', { prompt: aiPrompt })
+      if (res.ok) setAiTest({ state: 'done', text: res.response ?? '' })
+      else setAiTest({ state: 'error', text: res.error ?? t('settings.aiTestFailed') })
+    } catch (e: any) {
+      setAiTest({ state: 'error', text: e?.message ?? t('settings.aiTestFailed') })
     }
   }
 
@@ -446,6 +459,19 @@ function SettingsSection() {
           {field('AI_MODEL', t('settings.aiModel'))}
           {field('AI_BASE_URL', t('settings.aiBaseUrl'))}
           {field('AI_API_KEY', t('settings.aiApiKey'), 'password')}
+        </div>
+
+        <div className="mt-4 border-t border-border pt-4">
+          <label className="label">{t('settings.aiTestPrompt')}</label>
+          <textarea className="input min-h-16" value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder={t('settings.aiTestPlaceholder')} />
+          <div className="mt-2 flex items-center gap-3">
+            <button className="btn-ghost" onClick={testAI} disabled={aiTest.state === 'testing'}>
+              {aiTest.state === 'testing' ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} {t('settings.aiTest')}
+            </button>
+            <span className="text-xs text-muted">{t('settings.aiTestHint')}</span>
+          </div>
+          {aiTest.state === 'error' && <p className="mt-2 text-sm text-danger">{aiTest.text}</p>}
+          {aiTest.state === 'done' && <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap rounded-lg bg-surface p-3 text-sm">{aiTest.text}</pre>}
         </div>
       </section>
 

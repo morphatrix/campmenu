@@ -5,10 +5,42 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/morphatrix/campmenu/internal/ai"
 	"github.com/morphatrix/campmenu/internal/db"
 	"github.com/morphatrix/campmenu/internal/models"
 	"github.com/morphatrix/campmenu/internal/settings"
 )
+
+// ---- AI test ----
+
+type aiTestReq struct {
+	Prompt string `json:"prompt"`
+}
+
+// handleTestAI sends a free-form prompt to the configured AI (saved settings)
+// and returns its raw reply, so the admin can validate provider/key/model.
+func (s *Server) handleTestAI(w http.ResponseWriter, r *http.Request) {
+	var req aiTestReq
+	if err := decode(r, &req); err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "corps de requête invalide"})
+		return
+	}
+	cfg := s.aiConfig()
+	if !cfg.Enabled() {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "IA non configurée (enregistrez d'abord)"})
+		return
+	}
+	prompt := strings.TrimSpace(req.Prompt)
+	if prompt == "" {
+		prompt = "Bonjour, réponds en une phrase pour confirmer que tu fonctionnes."
+	}
+	resp, err := ai.Complete(r.Context(), cfg, prompt)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "response": resp})
+}
 
 const dsnPasswordMask = "••••••••"
 

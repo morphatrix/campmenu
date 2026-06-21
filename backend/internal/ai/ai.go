@@ -135,6 +135,17 @@ func ExtractRecipe(ctx context.Context, cfg Config, pageText string) (Draft, err
 	return parseDraft(content)
 }
 
+// Complete sends a free-form prompt to the configured model and returns its raw
+// text reply. Used by the admin "test" button to validate the configuration.
+func Complete(ctx context.Context, cfg Config, prompt string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, aiTimeout)
+	defer cancel()
+	if cfg.Provider == "anthropic" {
+		return callAnthropic(ctx, cfg, "", prompt)
+	}
+	return callOpenAICompatible(ctx, cfg, "", prompt)
+}
+
 func parseDraft(content string) (Draft, error) {
 	m := reJSON.FindString(content)
 	if m == "" {
@@ -161,14 +172,16 @@ func callOpenAICompatible(ctx context.Context, cfg Config, system, user string) 
 	if !strings.HasSuffix(endpoint, "/chat/completions") {
 		endpoint += "/chat/completions"
 	}
+	messages := make([]map[string]string, 0, 2)
+	if system != "" {
+		messages = append(messages, map[string]string{"role": "system", "content": system})
+	}
+	messages = append(messages, map[string]string{"role": "user", "content": user})
 	payload := map[string]any{
 		"model":       cfg.Model,
 		"temperature": 0.2,
 		"stream":      false,
-		"messages": []map[string]string{
-			{"role": "system", "content": system},
-			{"role": "user", "content": user},
-		},
+		"messages":    messages,
 	}
 	body, _ := json.Marshal(payload)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
@@ -218,10 +231,12 @@ func callAnthropic(ctx context.Context, cfg Config, system, user string) (string
 	payload := map[string]any{
 		"model":      cfg.Model,
 		"max_tokens": 2000,
-		"system":     system,
 		"messages": []map[string]string{
 			{"role": "user", "content": user},
 		},
+	}
+	if system != "" {
+		payload["system"] = system
 	}
 	body, _ := json.Marshal(payload)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))

@@ -190,6 +190,7 @@ func (s *Server) Router() http.Handler {
 				r.Get("/settings", s.handleGetSettings)
 				r.Patch("/settings", s.handleUpdateSettings)
 				r.Post("/settings/test-email", s.handleSendTestEmail)
+				r.Post("/settings/ai-test", s.handleTestAI)
 				r.Get("/settings/db", s.handleGetDBConfig)
 				r.Patch("/settings/db", s.handleUpdateDBConfig)
 			})
