@@ -52,7 +52,7 @@ const (
 )
 
 var (
-	reScriptStyle = regexp.MustCompile(`(?is)<(script|style|noscript|svg|head)[^>]*>.*?</\s*\1\s*>`)
+	reScriptStyle = regexp.MustCompile(`(?is)<(?:script|style|noscript|svg|head)\b[^>]*>.*?</\s*(?:script|style|noscript|svg|head)\s*>`)
 	reComment     = regexp.MustCompile(`(?s)<!--.*?-->`)
 	reTag         = regexp.MustCompile(`(?s)<[^>]+>`)
 	reSpace       = regexp.MustCompile(`[ \t\x{00a0}]+`)
