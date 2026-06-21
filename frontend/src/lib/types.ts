@@ -262,4 +262,5 @@ export interface SiteConfig {
   logoUrl: string
   defaultTheme: string
   defaultPalette: string
+  aiEnabled?: boolean
 }

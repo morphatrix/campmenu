@@ -13,7 +13,7 @@ import (
 )
 
 // sensitiveKeys are encrypted at rest (decrypted transparently in memory).
-var sensitiveKeys = map[string]bool{KeySMTPPass: true}
+var sensitiveKeys = map[string]bool{KeySMTPPass: true, KeyAIAPIKey: true}
 
 // Setting keys (also the env var names used as defaults).
 const (
@@ -29,6 +29,10 @@ const (
 	KeySMTPPass             = "SMTP_PASS"
 	KeySMTPFrom             = "SMTP_FROM"
 	KeyEmailConfirmRequired = "EMAIL_CONFIRM_REQUIRED"
+	KeyAIProvider           = "AI_PROVIDER"
+	KeyAIBaseURL            = "AI_BASE_URL"
+	KeyAIAPIKey             = "AI_API_KEY"
+	KeyAIModel              = "AI_MODEL"
 )
 
 // EditableKeys are the settings the admin UI may change.
@@ -37,6 +41,7 @@ var EditableKeys = []string{
 	KeyAppURL, KeyCORSOrigins,
 	KeySMTPHost, KeySMTPPort, KeySMTPUser, KeySMTPPass, KeySMTPFrom,
 	KeyEmailConfirmRequired,
+	KeyAIProvider, KeyAIBaseURL, KeyAIAPIKey, KeyAIModel,
 }
 
 // Store is a thread-safe, DB-backed settings cache. Sensitive values are

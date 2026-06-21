@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, ChefHat, Pencil, Plus, Trash2, Users, Wine, X } from 'lucide-react'
+import { Check, ChefHat, Loader2, Pencil, Plus, Sparkles, Trash2, Users, Wine, X } from 'lucide-react'
 import { api, resolveAsset } from '../lib/api'
 import { useLive } from '../context/LiveContext'
 import { useAuth } from '../context/AuthContext'
@@ -8,9 +8,10 @@ import IngredientInput from '../components/IngredientInput'
 import ImageUpload from '../components/ImageUpload'
 import Modal from '../components/Modal'
 import { isCocktail, isStaff } from '../lib/types'
-import type { Recipe } from '../lib/types'
+import type { Recipe, SiteConfig } from '../lib/types'
 
 interface DraftIngredient { name: string; quantity: number; unit: string }
+interface ImportDraft { name: string; basePersons: number; ingredients: DraftIngredient[]; steps: string[] }
 
 const PREDEFINED_TAGS = ['apéro', 'entrée', 'plat', 'accompagnement', 'dessert', 'petit-déjeuner', 'boisson']
 
@@ -185,6 +186,45 @@ function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial
       : [{ name: '', quantity: 0, unit: '' }],
   )
 
+  // AI import from a URL (only when an AI provider is configured, on creation).
+  const [aiEnabled, setAiEnabled] = useState(false)
+  const [importUrl, setImportUrl] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [importError, setImportError] = useState('')
+
+  useEffect(() => {
+    if (!initial) api.get<SiteConfig>('/config').then((c) => setAiEnabled(!!c.aiEnabled)).catch(() => {})
+  }, [initial])
+
+  async function importFromUrl() {
+    if (!importUrl.trim()) return
+    setImporting(true)
+    setImportError('')
+    setProgress(8)
+    // No real percentage is available from an LLM call, so advance smoothly and
+    // snap to 100% on completion.
+    const timer = setInterval(() => setProgress((p) => (p < 90 ? Math.min(90, p + Math.random() * 7 + 2) : p)), 700)
+    try {
+      const res = await api.post<{ ok: boolean; draft?: ImportDraft; error?: string }>('/recipes/import', { url: importUrl.trim() })
+      if (res.ok && res.draft) {
+        const d = res.draft
+        if (d.name) setName(d.name)
+        if (d.basePersons) setBasePersons(d.basePersons)
+        if (d.ingredients?.length) setIngredients(d.ingredients.map((i) => ({ name: i.name ?? '', quantity: i.quantity ?? 0, unit: i.unit ?? '' })))
+        if (d.steps?.length) setSteps(d.steps)
+      } else {
+        setImportError(res.error ?? t('recipes.importFailed'))
+      }
+    } catch (e: any) {
+      setImportError(e?.message ?? t('recipes.importFailed'))
+    } finally {
+      clearInterval(timer)
+      setProgress(100)
+      setTimeout(() => setImporting(false), 500)
+    }
+  }
+
   function setIng(i: number, patch: Partial<DraftIngredient>) {
     setIngredients((list) => list.map((it, idx) => (idx === i ? { ...it, ...patch } : it)))
   }
@@ -206,6 +246,26 @@ function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial
   return (
     <Modal title={initial ? t('common.edit') : forceCocktail ? t('recipes.createCocktail') : t('recipes.create')} onClose={onClose} wide>
       <form onSubmit={onSubmit} className="space-y-4">
+        {aiEnabled && !initial && (
+          <div className="rounded-lg border border-dashed border-border p-3">
+            <label className="label flex items-center gap-1"><Sparkles size={14} className="text-brand" /> {t('recipes.importTitle')}</label>
+            <div className="flex gap-2">
+              <input className="input" type="url" placeholder="https://…" value={importUrl} onChange={(e) => setImportUrl(e.target.value)} disabled={importing} />
+              <button type="button" className="btn-ghost whitespace-nowrap" onClick={importFromUrl} disabled={importing || !importUrl.trim()}>
+                {importing ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} {t('recipes.import')}
+              </button>
+            </div>
+            {importing && (
+              <div className="mt-3">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-surface">
+                  <div className="h-2 rounded-full bg-brand transition-all duration-500" style={{ width: `${Math.round(progress)}%` }} />
+                </div>
+                <p className="mt-1 text-xs text-muted">{t('recipes.importing')} {Math.round(progress)}%</p>
+              </div>
+            )}
+            {importError && <p className="mt-2 text-xs text-danger">{importError}</p>}
+          </div>
+        )}
         <div className="grid gap-4 sm:grid-cols-3">
           <div className="sm:col-span-2">
             <label className="label">{t('recipes.name')}</label>

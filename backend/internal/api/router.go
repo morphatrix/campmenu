@@ -115,6 +115,7 @@ func (s *Server) Router() http.Handler {
 			// Recipes (library).
 			r.Get("/recipes", s.handleListRecipes)
 			r.Get("/recipes/{id}", s.handleGetRecipe)
+			r.Post("/recipes/import", s.handleImportRecipe) // AI extraction from a URL
 			r.Post("/recipes", s.handleCreateRecipe)
 			r.Patch("/recipes/{id}", s.handleUpdateRecipe)
 			r.Delete("/recipes/{id}", s.handleDeleteRecipe)
@@ -204,5 +205,6 @@ func (s *Server) handlePublicConfig(w http.ResponseWriter, _ *http.Request) {
 		"logoUrl":        s.Settings.Get(settings.KeyLogoURL),
 		"defaultTheme":   s.Settings.Get(settings.KeyDefaultTheme),
 		"defaultPalette": s.Settings.Get(settings.KeyDefaultPalette),
+		"aiEnabled":      s.Settings.Get(settings.KeyAIProvider) != "" && s.Settings.Get(settings.KeyAIModel) != "",
 	})
 }

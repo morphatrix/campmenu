@@ -430,6 +430,25 @@ function SettingsSection() {
         </div>
       </section>
 
+      <section className="card p-6">
+        <h3 className="mb-1 font-semibold">{t('settings.aiTitle')}</h3>
+        <p className="mb-4 text-xs text-muted">{t('settings.aiHint')}</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label">{t('settings.aiProvider')}</label>
+            <select className="input" value={s['AI_PROVIDER'] ?? ''} onChange={(e) => set('AI_PROVIDER', e.target.value)}>
+              <option value="">{t('settings.aiDisabled')}</option>
+              <option value="ollama">Ollama</option>
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Claude (Anthropic)</option>
+            </select>
+          </div>
+          {field('AI_MODEL', t('settings.aiModel'))}
+          {field('AI_BASE_URL', t('settings.aiBaseUrl'))}
+          {field('AI_API_KEY', t('settings.aiApiKey'), 'password')}
+        </div>
+      </section>
+
       <div className="flex items-center gap-3">
         <button className="btn-primary" onClick={save}>{t('common.save')}</button>
         {saved && <span className="text-sm text-success">{t('admin.saved')}</span>}

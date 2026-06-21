@@ -6,9 +6,53 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/morphatrix/campmenu/internal/ai"
 	"github.com/morphatrix/campmenu/internal/models"
+	"github.com/morphatrix/campmenu/internal/settings"
 	"gorm.io/gorm"
 )
+
+// aiConfig builds the AI client config from the live settings store.
+func (s *Server) aiConfig() ai.Config {
+	return ai.Config{
+		Provider: s.Settings.Get(settings.KeyAIProvider),
+		BaseURL:  s.Settings.Get(settings.KeyAIBaseURL),
+		APIKey:   s.Settings.Get(settings.KeyAIAPIKey),
+		Model:    s.Settings.Get(settings.KeyAIModel),
+	}
+}
+
+type importRecipeReq struct {
+	URL string `json:"url"`
+}
+
+// handleImportRecipe fetches a recipe web page, cleans it and asks the configured
+// AI to extract a structured draft for the form. Outcomes return 200 with an
+// {ok,error|draft} body so the real message reaches the browser (a 5xx would be
+// replaced by an HTML error page at the ingress).
+func (s *Server) handleImportRecipe(w http.ResponseWriter, r *http.Request) {
+	var req importRecipeReq
+	if err := decode(r, &req); err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "corps de requête invalide"})
+		return
+	}
+	cfg := s.aiConfig()
+	if !cfg.Enabled() {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "IA non configurée"})
+		return
+	}
+	page, err := ai.FetchAndClean(r.Context(), strings.TrimSpace(req.URL))
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	draft, err := ai.ExtractRecipe(r.Context(), cfg, page)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "draft": draft})
+}
 
 type recipeIngredientReq struct {
 	Name     string  `json:"name"`
