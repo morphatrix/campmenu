@@ -5,11 +5,67 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/morphatrix/campmenu/internal/models"
 )
+
+// deaccentLower lowercases and strips French accents for unit/name matching.
+func deaccentLower(s string) string {
+	return strings.NewReplacer(
+		"à", "a", "â", "a", "ä", "a", "é", "e", "è", "e", "ê", "e", "ë", "e",
+		"î", "i", "ï", "i", "ô", "o", "ö", "o", "û", "u", "ù", "u", "ü", "u", "ç", "c",
+	).Replace(strings.ToLower(s))
+}
+
+// liquidWords flags ingredients measured by volume; everything else is weight.
+var liquidWords = map[string]bool{
+	"huile": true, "huiles": true, "lait": true, "eau": true, "eaux": true,
+	"vinaigre": true, "creme": true, "jus": true, "sirop": true, "sirops": true,
+	"vin": true, "vins": true, "biere": true, "bieres": true, "sauce": true, "sauces": true,
+	"bouillon": true, "coulis": true, "liqueur": true, "rhum": true, "vodka": true,
+	"whisky": true, "cognac": true, "alcool": true, "vinaigrette": true, "soja": true,
+}
+
+func isLiquid(name string) bool {
+	for _, tok := range strings.FieldsFunc(deaccentLower(name), func(r rune) bool { return !unicode.IsLetter(r) }) {
+		if liquidWords[tok] {
+			return true
+		}
+	}
+	return false
+}
+
+// spoonFactor returns the average quantity (grams or ml) for one spoon of the
+// given unit, or 0 when the unit isn't a spoon.
+func spoonFactor(unit string) float64 {
+	u := strings.ReplaceAll(deaccentLower(unit), ".", "")
+	u = strings.TrimSpace(u)
+	switch {
+	case strings.Contains(u, "soupe"), u == "cas", u == "cs", u == "tbsp":
+		return 15
+	case strings.Contains(u, "cafe"), u == "cac", u == "cc", u == "tsp":
+		return 5
+	case strings.HasPrefix(u, "cuillere") || u == "cuil": // unspecified spoon → average
+		return 12
+	}
+	return 0
+}
+
+// normalizeUnit converts spoons to a coherent base unit so the same ingredient
+// merges: weight (g) for solids, volume (ml) for liquids.
+func normalizeUnit(name, unit string, qty float64) (string, float64) {
+	f := spoonFactor(unit)
+	if f == 0 {
+		return unit, qty
+	}
+	if isLiquid(name) {
+		return "ml", qty * f
+	}
+	return "g", qty * f
+}
 
 // shoppingLine is one consolidated row of the shopping list.
 type shoppingLine struct {
@@ -50,6 +106,9 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 		if strings.TrimSpace(name) == "" || qty == 0 {
 			return
 		}
+		// Convert spoons to g/ml so the same ingredient consolidates instead of
+		// splitting into separate "cuillère" lines.
+		unit, qty = normalizeUnit(name, unit, qty)
 		k := lineKey(section, name, unit)
 		if l, ok := agg[k]; ok {
 			l.Quantity += qty
