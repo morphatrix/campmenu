@@ -8,12 +8,15 @@ export default function Modal({
   onClose,
   children,
   wide,
+  wider,
 }: {
   title?: string
   onClose: () => void
   children: ReactNode
   wide?: boolean
+  wider?: boolean
 }) {
+  const maxW = wider ? 'max-w-3xl' : wide ? 'max-w-2xl' : 'max-w-md'
   // Scroll lives on the outer container; the inner flex uses min-h-full so the
   // modal is centered when short but, when taller than the viewport, grows and
   // stays fully scrollable from the very top (avoids the items-center clipping bug).
@@ -24,7 +27,7 @@ export default function Modal({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50" onClick={onClose}>
       <div className="flex min-h-full items-center justify-center p-4">
         <div
-          className={`card w-full ${wide ? 'max-w-2xl' : 'max-w-md'} p-6`}
+          className={`card w-full ${maxW} p-6`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="sticky -top-6 z-10 -mx-6 -mt-6 mb-4 flex items-center justify-between border-b border-border bg-card px-6 py-3">

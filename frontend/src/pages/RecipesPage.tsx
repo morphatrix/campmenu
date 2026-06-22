@@ -108,7 +108,7 @@ function RecipeDetail({ recipe, onClose, onEdit, onChanged }: { recipe: Recipe; 
   }
 
   return (
-    <Modal title={recipe.name} onClose={onClose} wide>
+    <Modal title={recipe.name} onClose={onClose} wider>
       {recipe.photoUrl && <img src={resolveAsset(recipe.photoUrl)} alt="" className="mb-4 max-h-60 w-full rounded-lg object-cover" />}
       <div className="mb-4 flex flex-wrap gap-2 text-xs">
         <span className="chip"><Users size={12} /> {recipe.basePersons} {t('menu.persons')}</span>
@@ -117,11 +117,11 @@ function RecipeDetail({ recipe, onClose, onEdit, onChanged }: { recipe: Recipe; 
       </div>
 
       <h3 className="mb-2 font-semibold">{t('recipes.ingredients')}</h3>
-      <ul className="mb-5 divide-y divide-border">
+      <ul className="mb-5 grid gap-x-8 sm:grid-cols-2">
         {recipe.ingredients?.map((ri) => (
-          <li key={ri.id} className="flex justify-between py-1.5 text-sm">
+          <li key={ri.id} className="flex justify-between gap-3 border-b border-border py-1.5 text-sm">
             <span>{ri.ingredient?.canonicalName}</span>
-            <span className="text-muted">{ri.quantity} {ri.unit}</span>
+            <span className="shrink-0 text-muted tabular-nums">{ri.quantity} {ri.unit}</span>
           </li>
         ))}
       </ul>

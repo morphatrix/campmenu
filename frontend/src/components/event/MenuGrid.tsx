@@ -56,7 +56,7 @@ function Cell({
       {meal.recipes?.length ? (
         meal.recipes.map((mr) => (
           <div key={mr.id} className="flex items-center justify-between gap-1 rounded bg-surface px-1.5 py-1 text-xs">
-            <span className="min-w-0 flex-1 break-words leading-tight" title={mr.recipe?.name}>{mr.recipe?.name}</span>
+            <span className="min-w-0 flex-1 break-words leading-tight line-clamp-2" title={mr.recipe?.name}>{mr.recipe?.name}</span>
             <span className="flex shrink-0 items-center gap-1">
               <input
                 className="w-10 rounded border border-border bg-card px-1 text-right"
