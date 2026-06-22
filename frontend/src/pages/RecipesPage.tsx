@@ -61,7 +61,7 @@ export default function RecipesPage({ cocktails = false }: { cocktails?: boolean
           {displayed.map((r) => (
             <button key={r.id} onClick={() => setSelected(r)} className="card relative block h-44 overflow-hidden p-0 text-left transition hover:border-brand">
               {r.photoUrl ? (
-                <img src={resolveAsset(r.photoUrl)} alt={r.name} className="absolute inset-0 h-full w-full object-cover" />
+                <img src={resolveAsset(r.photoUrl)} alt="" className="absolute inset-0 h-full w-full object-cover" />
               ) : (
                 <div className="grid h-full place-items-center bg-surface">{isCocktail(r) ? <Wine className="text-muted" size={32} /> : <ChefHat className="text-muted" size={32} />}</div>
               )}
@@ -109,7 +109,7 @@ function RecipeDetail({ recipe, onClose, onEdit, onChanged }: { recipe: Recipe; 
 
   return (
     <Modal title={recipe.name} onClose={onClose} wide>
-      {recipe.photoUrl && <img src={resolveAsset(recipe.photoUrl)} alt={recipe.name} className="mb-4 max-h-60 w-full rounded-lg object-cover" />}
+      {recipe.photoUrl && <img src={resolveAsset(recipe.photoUrl)} alt="" className="mb-4 max-h-60 w-full rounded-lg object-cover" />}
       <div className="mb-4 flex flex-wrap gap-2 text-xs">
         <span className="chip"><Users size={12} /> {recipe.basePersons} {t('menu.persons')}</span>
         {(recipe.tags ?? []).map((tg) => <span key={tg} className="chip capitalize">{tg}</span>)}

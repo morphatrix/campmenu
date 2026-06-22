@@ -25,7 +25,7 @@ function RecipeChip({ recipe }: { recipe: Recipe }) {
       className={`flex cursor-grab touch-none items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 text-xs ${isDragging ? 'opacity-30' : ''}`}
     >
       <GripVertical size={12} className="shrink-0 text-muted" />
-      <span className="min-w-0 truncate">{recipe.name}</span>
+      <span className="min-w-0 truncate" title={recipe.name}>{recipe.name}</span>
     </div>
   )
 }
@@ -56,7 +56,7 @@ function Cell({
       {meal.recipes?.length ? (
         meal.recipes.map((mr) => (
           <div key={mr.id} className="flex items-center justify-between gap-1 rounded bg-surface px-1.5 py-1 text-xs">
-            <span className="min-w-0 flex-1 truncate">{mr.recipe?.name}</span>
+            <span className="min-w-0 flex-1 break-words leading-tight" title={mr.recipe?.name}>{mr.recipe?.name}</span>
             <span className="flex shrink-0 items-center gap-1">
               <input
                 className="w-10 rounded border border-border bg-card px-1 text-right"
