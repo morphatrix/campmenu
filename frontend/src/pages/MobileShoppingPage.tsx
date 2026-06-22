@@ -1,12 +1,12 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, ChevronRight, Eye, EyeOff, LogOut, ShoppingCart, SlidersHorizontal, Tent, Users } from 'lucide-react'
-import { api, ApiError } from '../lib/api'
+import { ArrowLeft, CalendarDays, ChefHat, ChevronRight, Eye, EyeOff, LogOut, Search, ShoppingCart, SlidersHorizontal, Tent, Users } from 'lucide-react'
+import { api, ApiError, resolveAsset } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useLive } from '../context/LiveContext'
 import { displayName } from '../lib/types'
-import type { Event, EventParticipant, ShoppingLine, User } from '../lib/types'
+import type { Event, EventParticipant, Recipe, ShoppingLine, User } from '../lib/types'
 import Avatar from '../components/Avatar'
 import UserInfoModal from '../components/UserInfoModal'
 import IbanRequestsBell from '../components/IbanRequestsBell'
@@ -131,7 +131,7 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
   const { t } = useTranslation()
   const [event, setEvent] = useState<Event | null>(null)
   const [lines, setLines] = useState<ShoppingLine[]>([])
-  const [tab, setTab] = useState<'courses' | 'participants'>('courses')
+  const [tab, setTab] = useState<'courses' | 'participants' | 'recipes'>('courses')
   const [showFilters, setShowFilters] = useState(false)
   const [hideBought, setHideBought] = useState(false)
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set())
@@ -269,7 +269,9 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
       </header>
 
       <main className="mx-auto max-w-md px-3 py-4">
-        {tab === 'participants' ? (
+        {tab === 'recipes' ? (
+          <MobileRecipes />
+        ) : tab === 'participants' ? (
           <MobileParticipants participants={participants} />
         ) : filtered.length === 0 ? (
           <p className="text-center text-muted">{lines.length === 0 ? t('shopping.empty') : '—'}</p>
@@ -298,6 +300,10 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
         <button onClick={() => setTab('participants')}
           className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs font-medium ${tab === 'participants' ? 'text-brand' : 'text-muted'}`}>
           <Users size={20} /> {t('mobile.tabParticipants')}
+        </button>
+        <button onClick={() => setTab('recipes')}
+          className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs font-medium ${tab === 'recipes' ? 'text-brand' : 'text-muted'}`}>
+          <ChefHat size={20} /> {t('mobile.tabRecipes')}
         </button>
       </nav>
     </div>
@@ -333,6 +339,86 @@ function MobileParticipants({ participants }: { participants: EventParticipant[]
       </ul>
       {info && <UserInfoModal user={info} onClose={() => setInfo(null)} />}
     </>
+  )
+}
+
+// MobileRecipes is a read-only recipe browser for cooking: search a list, tap to
+// read the full recipe (ingredients + steps) in a large, legible layout.
+function MobileRecipes() {
+  const { t } = useTranslation()
+  const [recipes, setRecipes] = useState<Recipe[]>([])
+  const [q, setQ] = useState('')
+  const [selected, setSelected] = useState<Recipe | null>(null)
+
+  useEffect(() => { api.get<Recipe[]>('/recipes').then(setRecipes).catch(() => {}) }, [])
+
+  if (selected) return <MobileRecipeView recipe={selected} onBack={() => setSelected(null)} />
+
+  const list = recipes
+    .filter((r) => r.name.toLowerCase().includes(q.trim().toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name))
+
+  return (
+    <div>
+      <div className="relative mb-3">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+        <input className="input pl-9" placeholder={t('mobile.searchRecipe')} value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+      {list.length === 0 ? (
+        <p className="text-center text-muted">{t('mobile.noRecipes')}</p>
+      ) : (
+        <ul className="space-y-2">
+          {list.map((r) => (
+            <li key={r.id}>
+              <button onClick={() => setSelected(r)} className="card flex w-full items-center gap-3 p-3 text-left transition active:scale-[.99]">
+                {r.photoUrl
+                  ? <img src={resolveAsset(r.photoUrl)} alt="" className="h-12 w-12 shrink-0 rounded-lg object-cover" />
+                  : <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-surface"><ChefHat size={20} className="text-muted" /></span>}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-semibold">{r.name}</span>
+                  <span className="text-xs text-muted">{r.basePersons} {t('menu.persons')} · {r.ingredients?.length ?? 0} ingr.</span>
+                </span>
+                <ChevronRight size={18} className="shrink-0 text-muted" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+function MobileRecipeView({ recipe, onBack }: { recipe: Recipe; onBack: () => void }) {
+  const { t } = useTranslation()
+  const steps = (recipe.instructions ?? '').split('\n').map((s) => s.trim()).filter(Boolean)
+  return (
+    <div className="space-y-4">
+      <button onClick={onBack} className="flex items-center gap-1 text-sm text-brand"><ArrowLeft size={16} /> {t('mobile.recipeBack')}</button>
+      {recipe.photoUrl && <img src={resolveAsset(recipe.photoUrl)} alt="" className="max-h-52 w-full rounded-lg object-cover" />}
+      <div>
+        <h2 className="text-xl font-bold">{recipe.name}</h2>
+        <p className="text-sm text-muted">{recipe.basePersons} {t('menu.persons')}</p>
+      </div>
+      <div>
+        <h3 className="mb-2 font-semibold">{t('recipes.ingredients')}</h3>
+        <ul className="divide-y divide-border">
+          {recipe.ingredients?.map((ri) => (
+            <li key={ri.id} className="flex justify-between gap-3 py-2">
+              <span>{ri.ingredient?.canonicalName}</span>
+              <span className="shrink-0 text-muted tabular-nums">{ri.quantity} {ri.unit}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {steps.length > 0 && (
+        <div>
+          <h3 className="mb-2 font-semibold">{t('recipes.instructions')}</h3>
+          <ol className="list-decimal space-y-3 pl-5 leading-relaxed marker:font-semibold marker:text-brand">
+            {steps.map((s, i) => <li key={i}>{s}</li>)}
+          </ol>
+        </div>
+      )}
+    </div>
   )
 }
 

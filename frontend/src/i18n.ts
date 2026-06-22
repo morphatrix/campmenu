@@ -48,6 +48,7 @@ const fr = {
       broughtBy: 'Ramené par', unassigned: 'Non assigné', reset: 'Réinitialiser', bought: '{{n}}/{{total}} pris',
       tabShopping: 'Courses', tabParticipants: 'Participants', noParticipants: 'Aucun participant.',
       copyIban: "Copier l'IBAN", ibanCopied: 'IBAN copié !', noIban: 'Pas d\'IBAN',
+      tabRecipes: 'Recettes', searchRecipe: 'Rechercher une recette…', noRecipes: 'Aucune recette.', recipeBack: 'Retour',
     },
     install: {
       title: 'Installer l\'application', subtitle: 'CampMenu s\'installe sur ton téléphone comme une vraie app, sans passer par un store.',
@@ -187,6 +188,7 @@ const en = {
       broughtBy: 'Brought by', unassigned: 'Unassigned', reset: 'Reset', bought: '{{n}}/{{total}} done',
       tabShopping: 'Shopping', tabParticipants: 'Participants', noParticipants: 'No participants.',
       copyIban: 'Copy IBAN', ibanCopied: 'IBAN copied!', noIban: 'No IBAN',
+      tabRecipes: 'Recipes', searchRecipe: 'Search a recipe…', noRecipes: 'No recipes.', recipeBack: 'Back',
     },
     install: {
       title: 'Install the app', subtitle: 'CampMenu installs on your phone like a real app, no store needed.',
