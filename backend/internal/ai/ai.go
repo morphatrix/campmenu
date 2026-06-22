@@ -63,33 +63,35 @@ var (
 )
 
 // FetchAndClean downloads a page and reduces it to readable plain text, dropping
-// scripts/styles/markup so the prompt stays small and signal-rich.
-func FetchAndClean(ctx context.Context, url string) (string, error) {
+// scripts/styles/markup so the prompt stays small and signal-rich. It also
+// returns the page's main image URL (og:image / JSON-LD), extracted reliably so
+// we don't depend on the model for it.
+func FetchAndClean(ctx context.Context, url string) (string, string, error) {
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
-		return "", fmt.Errorf("URL invalide")
+		return "", "", fmt.Errorf("URL invalide")
 	}
 	ctx, cancel := context.WithTimeout(ctx, fetchTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; CampMenuBot/1.0)")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return "", fmt.Errorf("page inaccessible (HTTP %d)", resp.StatusCode)
+		return "", "", fmt.Errorf("page inaccessible (HTTP %d)", resp.StatusCode)
 	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	full := string(raw)
-	ogImage := extractOgImage(full)
+	image := extractImage(full)
 
 	var content string
 	// Most recipe sites embed a schema.org/Recipe as JSON-LD. When present it is
@@ -113,18 +115,13 @@ func FetchAndClean(ctx context.Context, url string) (string, error) {
 		}
 		content = reBlankLines.ReplaceAllString(strings.Join(kept, "\n"), "\n\n")
 	}
-	if strings.TrimSpace(content) == "" && ogImage == "" {
-		return "", fmt.Errorf("aucun contenu exploitable sur la page")
+	if strings.TrimSpace(content) == "" && image == "" {
+		return "", "", fmt.Errorf("aucun contenu exploitable sur la page")
 	}
 	if len(content) > maxPageChars {
 		content = content[:maxPageChars]
 	}
-	// Always surface the page's main image so the model can fill photoUrl even
-	// when it isn't inside the recipe block.
-	if ogImage != "" {
-		content += "\n\nImage principale: " + ogImage
-	}
-	return content, nil
+	return content, image, nil
 }
 
 var reOgImage = []*regexp.Regexp{
@@ -138,6 +135,20 @@ func extractOgImage(rawHTML string) string {
 		if m := re.FindStringSubmatch(rawHTML); m != nil {
 			return strings.TrimSpace(html.UnescapeString(m[1]))
 		}
+	}
+	return ""
+}
+
+var reJSONImage = regexp.MustCompile(`(?i)"image"\s*:\s*"(https?://[^"]+)"`)
+
+// extractImage returns the page's main image: Open Graph first, then a JSON-LD
+// "image" string. Done deterministically so we don't rely on the model.
+func extractImage(rawHTML string) string {
+	if u := extractOgImage(rawHTML); u != "" {
+		return u
+	}
+	if m := reJSONImage.FindStringSubmatch(rawHTML); m != nil {
+		return strings.TrimSpace(html.UnescapeString(m[1]))
 	}
 	return ""
 }

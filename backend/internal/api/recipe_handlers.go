@@ -41,7 +41,7 @@ func (s *Server) handleImportRecipe(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "IA non configurée"})
 		return
 	}
-	page, err := ai.FetchAndClean(r.Context(), strings.TrimSpace(req.URL))
+	page, image, err := ai.FetchAndClean(r.Context(), strings.TrimSpace(req.URL))
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
 		return
@@ -50,6 +50,10 @@ func (s *Server) handleImportRecipe(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
 		return
+	}
+	// The page's own image is reliable; prefer it over whatever the model returned.
+	if image != "" {
+		draft.PhotoURL = image
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "draft": draft})
 }
@@ -259,6 +263,20 @@ func (s *Server) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusForbidden, "suppression non autorisée")
 		return
 	}
-	s.DB.Delete(&models.Recipe{}, "id = ?", id)
+	// Detach the recipe from any menu slot / tab that references it, then delete
+	// (the FK on meal_recipes/tab_recipes would otherwise block the delete).
+	err = s.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("recipe_id = ?", id).Delete(&models.MealRecipe{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("recipe_id = ?", id).Delete(&models.TabRecipe{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&models.Recipe{}, "id = ?", id).Error
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "suppression impossible")
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
