@@ -40,6 +40,7 @@ type DraftIngredient struct {
 type Draft struct {
 	Name        string            `json:"name"`
 	BasePersons int               `json:"basePersons"`
+	PhotoURL    string            `json:"photoUrl"`
 	Ingredients []DraftIngredient `json:"ingredients"`
 	Steps       []string          `json:"steps"`
 }
@@ -88,38 +89,57 @@ func FetchAndClean(ctx context.Context, url string) (string, error) {
 		return "", err
 	}
 	full := string(raw)
+	ogImage := extractOgImage(full)
+
+	var content string
 	// Most recipe sites embed a schema.org/Recipe as JSON-LD. When present it is
 	// tiny and already structured — far better signal (and far fewer tokens) than
 	// the whole page, so prefer it.
 	if ld := extractRecipeJSONLD(full); ld != "" {
-		if len(ld) > maxPageChars {
-			ld = ld[:maxPageChars]
+		content = ld
+	} else {
+		text := full
+		text = reScriptStyle.ReplaceAllString(text, " ")
+		text = reComment.ReplaceAllString(text, " ")
+		text = reTag.ReplaceAllString(text, "\n")
+		text = html.UnescapeString(text)
+		text = reSpace.ReplaceAllString(text, " ")
+		lines := strings.Split(text, "\n")
+		kept := make([]string, 0, len(lines))
+		for _, l := range lines {
+			if t := strings.TrimSpace(l); t != "" {
+				kept = append(kept, t)
+			}
 		}
-		return ld, nil
+		content = reBlankLines.ReplaceAllString(strings.Join(kept, "\n"), "\n\n")
 	}
-	text := full
-	text = reScriptStyle.ReplaceAllString(text, " ")
-	text = reComment.ReplaceAllString(text, " ")
-	text = reTag.ReplaceAllString(text, "\n")
-	text = html.UnescapeString(text)
-	text = reSpace.ReplaceAllString(text, " ")
-	// Trim each line and drop empties.
-	lines := strings.Split(text, "\n")
-	out := make([]string, 0, len(lines))
-	for _, l := range lines {
-		if t := strings.TrimSpace(l); t != "" {
-			out = append(out, t)
-		}
-	}
-	text = strings.Join(out, "\n")
-	text = reBlankLines.ReplaceAllString(text, "\n\n")
-	if len(text) > maxPageChars {
-		text = text[:maxPageChars]
-	}
-	if strings.TrimSpace(text) == "" {
+	if strings.TrimSpace(content) == "" && ogImage == "" {
 		return "", fmt.Errorf("aucun contenu exploitable sur la page")
 	}
-	return text, nil
+	if len(content) > maxPageChars {
+		content = content[:maxPageChars]
+	}
+	// Always surface the page's main image so the model can fill photoUrl even
+	// when it isn't inside the recipe block.
+	if ogImage != "" {
+		content += "\n\nImage principale: " + ogImage
+	}
+	return content, nil
+}
+
+var reOgImage = []*regexp.Regexp{
+	regexp.MustCompile(`(?is)<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']`),
+	regexp.MustCompile(`(?is)<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']`),
+}
+
+// extractOgImage returns the page's Open Graph image URL, or "".
+func extractOgImage(rawHTML string) string {
+	for _, re := range reOgImage {
+		if m := re.FindStringSubmatch(rawHTML); m != nil {
+			return strings.TrimSpace(html.UnescapeString(m[1]))
+		}
+	}
+	return ""
 }
 
 // extractRecipeJSONLD returns the content of the first <script> block that looks
@@ -135,8 +155,8 @@ func extractRecipeJSONLD(rawHTML string) string {
 }
 
 const systemPrompt = `Tu extrais des recettes de cuisine. Réponds UNIQUEMENT avec du JSON minifié valide, sans texte ni balises Markdown, correspondant exactement à ce schéma :
-{"name":string,"basePersons":number,"ingredients":[{"name":string,"quantity":number,"unit":string}],"steps":[string]}
-Règles : "basePersons" est le nombre de personnes de la recette (par défaut 4 si absent). "quantity" est un nombre pour ce nombre de personnes (0 si inconnu). "unit" est l'unité (g, ml, cuillère, pièce…) ou "" si aucune. "steps" est la liste ordonnée des étapes. Garde la langue d'origine de la recette. N'invente rien qui ne soit pas sur la page.`
+{"name":string,"basePersons":number,"photoUrl":string,"ingredients":[{"name":string,"quantity":number,"unit":string}],"steps":[string]}
+Règles : "basePersons" est le nombre de personnes de la recette (par défaut 4 si absent). "photoUrl" est l'URL de l'image principale de la recette si présente dans la page (champ image ou "Image principale"), sinon "". "quantity" est un nombre pour ce nombre de personnes (0 si inconnu). "unit" est l'unité (g, ml, cuillère, pièce…) ou "" si aucune. "steps" est la liste ordonnée des étapes. Garde la langue d'origine de la recette. N'invente rien qui ne soit pas sur la page.`
 
 // ExtractRecipe sends the cleaned page to the configured model and parses the
 // JSON recipe it returns.
@@ -156,6 +176,30 @@ func ExtractRecipe(ctx context.Context, cfg Config, pageText string) (Draft, err
 		return Draft{}, err
 	}
 	return parseDraft(content)
+}
+
+// Aisles is the fixed set of supermarket sections an ingredient can be sorted into.
+var Aisles = []string{
+	"Fruits et légumes", "Boucherie", "Poissonnerie", "Crèmerie", "Épicerie salée",
+	"Épicerie sucrée", "Boissons", "Surgelés", "Boulangerie", "Hygiène & entretien", "Autres",
+}
+
+// ClassifyAisle asks the model to place an ingredient into one of Aisles. The
+// output is tiny (one label) so it's fast even on a small local model.
+func ClassifyAisle(ctx context.Context, cfg Config, name string) (string, error) {
+	prompt := "Classe cet ingrédient dans UN seul rayon de supermarché, parmi cette liste exacte : " +
+		strings.Join(Aisles, ", ") + ".\nRéponds UNIQUEMENT par le nom exact du rayon, sans autre texte.\nIngrédient : " + name
+	resp, err := Complete(ctx, cfg, prompt)
+	if err != nil {
+		return "", err
+	}
+	low := strings.ToLower(resp)
+	for _, a := range Aisles {
+		if strings.Contains(low, strings.ToLower(a)) {
+			return a, nil
+		}
+	}
+	return "Autres", nil
 }
 
 // Complete sends a free-form prompt to the configured model and returns its raw

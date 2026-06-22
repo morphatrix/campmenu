@@ -1,7 +1,7 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, CalendarDays, ChefHat, ChevronRight, Eye, EyeOff, LogOut, Search, ShoppingCart, SlidersHorizontal, Tent, Users } from 'lucide-react'
+import { ArrowLeft, CalendarDays, ChefHat, ChevronRight, Eye, EyeOff, LogOut, Search, ShoppingCart, SlidersHorizontal, Store, Tent, Users } from 'lucide-react'
 import { api, ApiError, resolveAsset } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useLive } from '../context/LiveContext'
@@ -136,6 +136,9 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
   const [hideBought, setHideBought] = useState(false)
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set())
   const [broughtBy, setBroughtBy] = useState('') // '' = all, 'none' = unassigned, else userId
+  const [byAisle, setByAisle] = useState(false)
+  const [aiEnabled, setAiEnabled] = useState(false)
+  useEffect(() => { api.get<{ aiEnabled?: boolean }>('/config').then((c) => setAiEnabled(!!c.aiEnabled)).catch(() => {}) }, [])
 
   async function loadEvent() {
     const res = await api.get<{ event: Event }>(`/events/${eventId}`)
@@ -178,12 +181,12 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
   const groups = useMemo(() => {
     const map = new Map<string, ShoppingLine[]>()
     for (const l of filtered) {
-      const key = l.section || ''
+      const key = byAisle ? (l.aisle || t('shopping.otherAisle')) : (l.section || '')
       if (!map.has(key)) map.set(key, [])
       map.get(key)!.push(l)
     }
     return [...map.entries()].sort((a, b) => (a[0] === '' ? -1 : b[0] === '' ? 1 : a[0].localeCompare(b[0])))
-  }, [filtered])
+  }, [filtered, byAisle, t])
 
   const boughtCount = lines.filter((l) => l.bought).length
   const activeFilters = (hideBought ? 1 : 0) + hiddenSections.size + (broughtBy ? 1 : 0)
@@ -224,6 +227,14 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
           >
             <SlidersHorizontal size={13} /> {t('mobile.filters')}{activeFilters ? ` (${activeFilters})` : ''}
           </button>
+          {aiEnabled && (
+            <button
+              onClick={() => setByAisle((v) => !v)}
+              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium ${byAisle ? 'border-brand bg-brand text-brand-fg' : 'border-border bg-surface text-muted'}`}
+            >
+              <Store size={13} /> {t('shopping.byAisle')}
+            </button>
+          )}
           <span className="ml-auto text-xs text-muted">{t('mobile.bought', { n: boughtCount, total: lines.length })}</span>
         </div>
         {lines.length > 0 && (

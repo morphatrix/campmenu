@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/morphatrix/campmenu/internal/config"
@@ -29,10 +30,14 @@ type Server struct {
 	UsingExternal bool
 	// Crypto encrypts/decrypts sensitive settings stored at rest.
 	Crypto *secrets.Cipher
+
+	// aisleInProgress dedupes in-flight AI aisle classifications by name.
+	aisleMu         sync.Mutex
+	aisleInProgress map[string]bool
 }
 
 func New(db *gorm.DB, cfg *config.Config, mailer *mail.Mailer, st *settings.Store, hub *sse.Hub) *Server {
-	return &Server{DB: db, Cfg: cfg, Mailer: mailer, Settings: st, Hub: hub}
+	return &Server{DB: db, Cfg: cfg, Mailer: mailer, Settings: st, Hub: hub, aisleInProgress: map[string]bool{}}
 }
 
 // ---- request context ----

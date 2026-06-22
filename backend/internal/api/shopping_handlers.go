@@ -1,15 +1,19 @@
 package api
 
 import (
+	"context"
 	"math"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/morphatrix/campmenu/internal/ai"
 	"github.com/morphatrix/campmenu/internal/models"
+	"gorm.io/gorm/clause"
 )
 
 // deaccentLower lowercases and strips French accents for unit/name matching.
@@ -79,6 +83,72 @@ type shoppingLine struct {
 	Bought         bool       `json:"bought"`         // derived: bought quantity covers the total
 	BoughtQuantity float64    `json:"boughtQuantity"` // how much is already bought
 	BroughtBy      *uuid.UUID `json:"broughtBy"`
+	Aisle          string     `json:"aisle"` // supermarket section (AI-classified, may be empty)
+}
+
+// applyAisles fills each line's Aisle from the cache and asynchronously asks the
+// AI to classify any name not seen yet (so it's ready next time).
+func (s *Server) applyAisles(lines []shoppingLine) {
+	if len(lines) == 0 {
+		return
+	}
+	keys := make([]string, 0, len(lines))
+	for _, l := range lines {
+		keys = append(keys, strings.ToLower(strings.TrimSpace(l.Name)))
+	}
+	var rows []models.AisleCache
+	s.DB.Where("name IN ?", keys).Find(&rows)
+	cached := make(map[string]string, len(rows))
+	for _, r := range rows {
+		cached[r.Name] = r.Aisle
+	}
+	missing := []string{}
+	for i := range lines {
+		k := strings.ToLower(strings.TrimSpace(lines[i].Name))
+		if a, ok := cached[k]; ok {
+			lines[i].Aisle = a
+		} else {
+			missing = append(missing, lines[i].Name)
+		}
+	}
+	s.queueAisleClassification(missing)
+}
+
+// queueAisleClassification classifies the given names in the background (one at a
+// time), de-duplicating in-flight names. No-op when AI is not configured.
+func (s *Server) queueAisleClassification(names []string) {
+	cfg := s.aiConfig()
+	if !cfg.Enabled() || len(names) == 0 {
+		return
+	}
+	s.aisleMu.Lock()
+	todo := []string{}
+	for _, n := range names {
+		k := strings.ToLower(strings.TrimSpace(n))
+		if k == "" || s.aisleInProgress[k] {
+			continue
+		}
+		s.aisleInProgress[k] = true
+		todo = append(todo, n)
+	}
+	s.aisleMu.Unlock()
+	if len(todo) == 0 {
+		return
+	}
+	go func() {
+		for _, n := range todo {
+			k := strings.ToLower(strings.TrimSpace(n))
+			if aisle, err := ai.ClassifyAisle(context.Background(), cfg, n); err == nil && aisle != "" {
+				s.DB.Clauses(clause.OnConflict{
+					Columns:   []clause.Column{{Name: "name"}},
+					DoUpdates: clause.AssignmentColumns([]string{"aisle", "updated_at"}),
+				}).Create(&models.AisleCache{Name: k, Aisle: aisle, UpdatedAt: time.Now()})
+			}
+			s.aisleMu.Lock()
+			delete(s.aisleInProgress, k)
+			s.aisleMu.Unlock()
+		}
+	}()
 }
 
 func lineKey(section, name, unit string) string {
@@ -232,6 +302,7 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 		l.Bought = l.Quantity > 0 && l.BoughtQuantity >= l.Quantity
 		out = append(out, *l)
 	}
+	s.applyAisles(out)
 	return out
 }
 

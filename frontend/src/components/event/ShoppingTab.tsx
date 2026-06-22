@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Store } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useLive } from '../../context/LiveContext'
 import { displayName } from '../../lib/types'
-import type { Event, EventParticipant, ShoppingLine } from '../../lib/types'
+import type { Event, EventParticipant, ShoppingLine, SiteConfig } from '../../lib/types'
 
 const STANDARD = ['Drive', 'Station']
 
@@ -12,7 +13,11 @@ type ShoppingPatch = Partial<ShoppingLine> & { clearBroughtBy?: boolean }
 export default function ShoppingTab({ event }: { event: Event }) {
   const { t } = useTranslation()
   const [lines, setLines] = useState<ShoppingLine[]>([])
+  const [byAisle, setByAisle] = useState(false)
+  const [aiEnabled, setAiEnabled] = useState(false)
   const participants = (event.participants ?? []).filter((p) => p.user)
+
+  useEffect(() => { api.get<SiteConfig>('/config').then((c) => setAiEnabled(!!c.aiEnabled)).catch(() => {}) }, [])
 
   async function load() {
     const res = await api.get<ShoppingLine[]>(`/events/${event.id}/shopping`)
@@ -34,21 +39,32 @@ export default function ShoppingTab({ event }: { event: Event }) {
     })
   }
 
-  // Group lines by section; the empty section ("Général") comes first.
+  // Group by section (default) or by supermarket aisle (toggle). The empty group
+  // comes first in section mode.
   const groups = useMemo(() => {
     const map = new Map<string, ShoppingLine[]>()
     for (const l of lines) {
-      const key = l.section || ''
+      const key = byAisle ? (l.aisle || t('shopping.otherAisle')) : (l.section || '')
       if (!map.has(key)) map.set(key, [])
       map.get(key)!.push(l)
     }
     return [...map.entries()].sort((a, b) => (a[0] === '' ? -1 : b[0] === '' ? 1 : a[0].localeCompare(b[0])))
-  }, [lines])
+  }, [lines, byAisle, t])
 
   if (lines.length === 0) return <p className="text-muted">{t('shopping.empty')}</p>
 
   return (
     <div className="space-y-6">
+      {aiEnabled && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setByAisle((v) => !v)}
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${byAisle ? 'border-brand bg-brand text-brand-fg' : 'border-border bg-surface text-muted'}`}
+          >
+            <Store size={13} /> {t('shopping.byAisle')}
+          </button>
+        </div>
+      )}
       {groups.map(([section, items]) => (
         <section key={section || '__general__'}>
           <h3 className="mb-2 font-semibold">{section || t('shopping.general')}</h3>

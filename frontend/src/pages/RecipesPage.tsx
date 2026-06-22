@@ -11,7 +11,7 @@ import { isCocktail, isStaff } from '../lib/types'
 import type { Recipe, SiteConfig } from '../lib/types'
 
 interface DraftIngredient { name: string; quantity: number; unit: string }
-interface ImportDraft { name: string; basePersons: number; ingredients: DraftIngredient[]; steps: string[] }
+interface ImportDraft { name: string; basePersons: number; photoUrl?: string; ingredients: DraftIngredient[]; steps: string[] }
 
 const PREDEFINED_TAGS = ['apéro', 'entrée', 'plat', 'accompagnement', 'dessert', 'petit-déjeuner', 'boisson']
 
@@ -213,6 +213,7 @@ function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial
         const d = res.draft
         if (d.name) setName(d.name)
         if (d.basePersons) setBasePersons(d.basePersons)
+        if (d.photoUrl) setPhotoUrl(d.photoUrl)
         if (d.ingredients?.length) setIngredients(d.ingredients.map((i) => ({ name: i.name ?? '', quantity: i.quantity ?? 0, unit: i.unit ?? '' })))
         if (d.steps?.length) setSteps(d.steps)
       } else {

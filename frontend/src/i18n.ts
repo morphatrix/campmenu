@@ -79,7 +79,7 @@ const fr = {
       title: 'Liste de courses', ingredient: 'Ingrédient', quantity: 'Quantité', source: 'Source',
       observation: 'Observation', bought: 'Pris', broughtBy: 'Ramené par', empty: 'Rien à acheter pour le moment.',
       supply: 'Approvisionnement', broughtByName: 'Ramené par {{name}}', other: 'Autre…', otherPlaceholder: 'Préciser…',
-      general: 'Général', remaining: 'reste {{n}} {{unit}}',
+      general: 'Général', remaining: 'reste {{n}} {{unit}}', byAisle: 'Par rayon', otherAisle: 'Autres',
     },
     recipes: {
       title: 'Recettes', create: 'Nouvelle recette', name: 'Nom', basePersons: 'Pour (pers)',
@@ -219,7 +219,7 @@ const en = {
       title: 'Shopping list', ingredient: 'Ingredient', quantity: 'Quantity', source: 'Source',
       observation: 'Note', bought: 'Got it', broughtBy: 'Brought by', empty: 'Nothing to buy yet.',
       supply: 'Provisioning', broughtByName: 'Brought by {{name}}', other: 'Other…', otherPlaceholder: 'Specify…',
-      general: 'General', remaining: '{{n}} {{unit}} left',
+      general: 'General', remaining: '{{n}} {{unit}} left', byAisle: 'By aisle', otherAisle: 'Other',
     },
     recipes: {
       title: 'Recipes', create: 'New recipe', name: 'Name', basePersons: 'For (ppl)',

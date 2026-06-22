@@ -369,6 +369,14 @@ type ShoppingEntry struct {
 	BroughtBy      *uuid.UUID `gorm:"type:uuid" json:"broughtBy"`
 }
 
+// AisleCache caches an ingredient's supermarket aisle (rayon), classified by the
+// AI once per ingredient name, so the shopping list can be grouped by aisle.
+type AisleCache struct {
+	Name      string    `gorm:"primaryKey;column:name" json:"name"` // lowercased ingredient name
+	Aisle     string    `json:"aisle"`
+	UpdatedAt time.Time `json:"updatedAt"`
+}
+
 // AppSetting is a runtime-editable configuration entry (key/value), overriding
 // the env defaults for non-bootstrap settings (SMTP, branding, origins…).
 type AppSetting struct {
@@ -381,6 +389,7 @@ type AppSetting struct {
 func AllModels() []any {
 	return []any{
 		&AppSetting{},
+		&AisleCache{},
 		&Image{},
 		&User{},
 		&IBANGrant{},
