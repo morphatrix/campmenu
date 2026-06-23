@@ -41,7 +41,7 @@ func (s *Server) handleImportRecipe(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "IA non configurée"})
 		return
 	}
-	page, image, err := ai.FetchAndClean(r.Context(), strings.TrimSpace(req.URL))
+	page, images, err := ai.FetchAndClean(r.Context(), strings.TrimSpace(req.URL))
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
 		return
@@ -52,8 +52,8 @@ func (s *Server) handleImportRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The page's own image is reliable; prefer it over whatever the model returned.
-	if image != "" {
-		draft.PhotoURL = image
+	if len(images) > 0 {
+		draft.PhotoURL = images[0]
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "draft": draft})
 }

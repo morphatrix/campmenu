@@ -13,7 +13,7 @@ import type { Event, Location, LocationsResponse, SiteConfig, User } from '../..
 interface ImportLocationDraft {
   title?: string; address?: string; websiteUrl?: string; mapsUrl?: string
   beds?: number; singleBeds?: number; doubleBeds?: number; toilets?: number
-  price?: number; phone?: string; description?: string; amenities?: string[]; image?: string
+  price?: number; phone?: string; description?: string; amenities?: string[]; images?: string[]
 }
 
 const AMENITIES = [
@@ -300,7 +300,7 @@ function LocationForm({
           description: d.description || prev.description,
         }))
         if (d.amenities?.length) setAmenities(d.amenities)
-        if (d.image) setImages([d.image])
+        if (d.images?.length) setImages(d.images)
       } else {
         setImportError(res.error ?? t('recipes.importFailed'))
       }

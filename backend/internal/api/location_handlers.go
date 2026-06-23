@@ -30,7 +30,7 @@ func (s *Server) handleImportLocation(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "IA non configurée"})
 		return
 	}
-	page, image, err := ai.FetchAndClean(r.Context(), strings.TrimSpace(req.URL))
+	page, images, err := ai.FetchAndClean(r.Context(), strings.TrimSpace(req.URL))
 	if err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
 		return
@@ -40,8 +40,9 @@ func (s *Server) handleImportLocation(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	if image != "" {
-		draft.Image = image
+	// All page photos populate the gallery (the model is unreliable for image URLs).
+	if len(images) > 0 {
+		draft.Images = images
 	}
 	if draft.WebsiteURL == "" {
 		draft.WebsiteURL = strings.TrimSpace(req.URL)

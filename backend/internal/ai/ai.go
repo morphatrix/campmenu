@@ -66,32 +66,32 @@ var (
 // scripts/styles/markup so the prompt stays small and signal-rich. It also
 // returns the page's main image URL (og:image / JSON-LD), extracted reliably so
 // we don't depend on the model for it.
-func FetchAndClean(ctx context.Context, url string) (string, string, error) {
+func FetchAndClean(ctx context.Context, url string) (string, []string, error) {
 	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
-		return "", "", fmt.Errorf("URL invalide")
+		return "", nil, fmt.Errorf("URL invalide")
 	}
 	ctx, cancel := context.WithTimeout(ctx, fetchTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return "", "", err
+		return "", nil, err
 	}
 	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; CampMenuBot/1.0)")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", "", err
+		return "", nil, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		return "", "", fmt.Errorf("page inaccessible (HTTP %d)", resp.StatusCode)
+		return "", nil, fmt.Errorf("page inaccessible (HTTP %d)", resp.StatusCode)
 	}
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyBytes))
 	if err != nil {
-		return "", "", err
+		return "", nil, err
 	}
 	full := string(raw)
-	image := extractImage(full)
+	images := extractImages(full)
 
 	var content string
 	// Most recipe sites embed a schema.org/Recipe as JSON-LD. When present it is
@@ -115,13 +115,13 @@ func FetchAndClean(ctx context.Context, url string) (string, string, error) {
 		}
 		content = reBlankLines.ReplaceAllString(strings.Join(kept, "\n"), "\n\n")
 	}
-	if strings.TrimSpace(content) == "" && image == "" {
-		return "", "", fmt.Errorf("aucun contenu exploitable sur la page")
+	if strings.TrimSpace(content) == "" && len(images) == 0 {
+		return "", nil, fmt.Errorf("aucun contenu exploitable sur la page")
 	}
 	if len(content) > maxPageChars {
 		content = content[:maxPageChars]
 	}
-	return content, image, nil
+	return content, images, nil
 }
 
 var reOgImage = []*regexp.Regexp{
@@ -139,18 +139,37 @@ func extractOgImage(rawHTML string) string {
 	return ""
 }
 
-var reJSONImage = regexp.MustCompile(`(?i)"image"\s*:\s*"(https?://[^"]+)"`)
+var reImgURL = regexp.MustCompile(`(?i)https?://[^\s"'<>()\\]+?\.(?:jpe?g|png|webp)`)
 
-// extractImage returns the page's main image: Open Graph first, then a JSON-LD
-// "image" string. Done deterministically so we don't rely on the model.
-func extractImage(rawHTML string) string {
-	if u := extractOgImage(rawHTML); u != "" {
-		return u
+// junk filters out non-photo image URLs (logos, icons, sprites, avatars…).
+var imgJunk = []string{"logo", "icon", "sprite", "favicon", "avatar", "badge", "emoji", "placeholder", "spacer", "pixel"}
+
+// extractImages returns the page's photo URLs (Open Graph first, then every
+// image URL found in the HTML), deduped and filtered. Done deterministically so
+// galleries work even when the model returns nothing — e.g. Airbnb embeds its
+// photo URLs in the page JSON.
+func extractImages(rawHTML string) []string {
+	seen := map[string]bool{}
+	out := []string{}
+	add := func(u string) {
+		u = strings.TrimSpace(html.UnescapeString(u))
+		if u == "" || seen[u] || len(out) >= 15 {
+			return
+		}
+		lu := strings.ToLower(u)
+		for _, bad := range imgJunk {
+			if strings.Contains(lu, bad) {
+				return
+			}
+		}
+		seen[u] = true
+		out = append(out, u)
 	}
-	if m := reJSONImage.FindStringSubmatch(rawHTML); m != nil {
-		return strings.TrimSpace(html.UnescapeString(m[1]))
+	add(extractOgImage(rawHTML))
+	for _, m := range reImgURL.FindAllString(rawHTML, -1) {
+		add(m)
 	}
-	return ""
+	return out
 }
 
 // extractRecipeJSONLD returns the content of the first <script> block that looks
@@ -203,12 +222,12 @@ type LocationDraft struct {
 	Phone       string   `json:"phone"`
 	Description string   `json:"description"`
 	Amenities   []string `json:"amenities"`
-	Image       string   `json:"image"`
+	Images      []string `json:"images"`
 }
 
 const locationPrompt = `Tu extrais les informations d'un hébergement / logement de vacances depuis une page web. Réponds UNIQUEMENT avec du JSON minifié valide, sans texte ni balises Markdown, correspondant exactement à ce schéma :
 {"title":string,"address":string,"websiteUrl":string,"mapsUrl":string,"beds":number,"singleBeds":number,"doubleBeds":number,"toilets":number,"price":number,"phone":string,"description":string,"amenities":[string]}
-Règles : "beds" est le nombre total de couchages, "price" le prix total du séjour si indiqué (0 sinon), "amenities" la liste des équipements (wifi, parking, lave-vaisselle, jacuzzi, cheminée…). Mets "" ou 0 quand une information est absente. Garde la langue d'origine. N'invente rien qui ne soit pas sur la page.`
+Règles : "beds" est le nombre total de couchages, "toilets" le nombre de salles de bain (douche/baignoire), "price" le prix total du séjour si indiqué (0 sinon), "amenities" la liste des équipements (wifi, parking, lave-vaisselle, jacuzzi, cheminée…). Mets "" ou 0 quand une information est absente. Garde la langue d'origine. N'invente rien qui ne soit pas sur la page.`
 
 // ExtractLocation sends the cleaned page to the model and parses the lodging.
 func ExtractLocation(ctx context.Context, cfg Config, pageText string) (LocationDraft, error) {

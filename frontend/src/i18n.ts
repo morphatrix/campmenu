@@ -29,7 +29,7 @@ const fr = {
     },
     locations: {
       title: 'Locations', add: 'Proposer une location', edit: 'Modifier', intitule: 'Intitulé',
-      address: 'Localisation', beds: 'Lits', singleBeds: 'Lits simples', doubleBeds: 'Lits doubles', toilets: 'Toilettes',
+      address: 'Localisation', beds: 'Lits', singleBeds: 'Lits simples', doubleBeds: 'Lits doubles', toilets: 'Salles de bain',
       price: 'Prix total (€)', perPerson: '/pers',
       website: 'Site web', maps: 'Voir sur la carte', amenities: 'Petits plus', images: 'Images (URL)', addImage: 'Ajouter une image',
       description: 'Description', phone: 'Téléphone', usefulInfo: 'Infos utiles', empty: 'Aucune proposition pour le moment.',
@@ -169,7 +169,7 @@ const en = {
     },
     locations: {
       title: 'Locations', add: 'Propose a location', edit: 'Edit', intitule: 'Title',
-      address: 'Location', beds: 'Beds', singleBeds: 'Single beds', doubleBeds: 'Double beds', toilets: 'Toilets',
+      address: 'Location', beds: 'Beds', singleBeds: 'Single beds', doubleBeds: 'Double beds', toilets: 'Bathrooms',
       price: 'Total price (€)', perPerson: '/person',
       website: 'Website', maps: 'View on map', amenities: 'Amenities', images: 'Images (URL)', addImage: 'Add image',
       description: 'Description', phone: 'Phone', usefulInfo: 'Useful info', empty: 'No proposals yet.',
