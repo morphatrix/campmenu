@@ -152,7 +152,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                     </div>
                   )}
 
-                  {loc.description && <p className="mb-2 whitespace-pre-wrap text-sm">{loc.description}</p>}
+                  {loc.description && <p className="mb-2 line-clamp-5 whitespace-pre-wrap text-sm" title={loc.description}>{loc.description}</p>}
                   {loc.usefulInfo && <p className="mb-2 text-sm text-muted">{loc.usefulInfo}</p>}
 
                   <div className="flex flex-wrap items-center gap-3 border-t border-border pt-3">
@@ -180,8 +180,10 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                         <button className="btn-ghost text-danger" onClick={() => remove(loc)}><Trash2 size={14} /></button>
                       </>
                     )}
-                    {isAdmin && !loc.isWinner && (
-                      <button className="btn-ghost text-success" onClick={() => promote(loc)}><Trophy size={14} /> {t('locations.promote')}</button>
+                    {isAdmin && (
+                      <button className={`btn-ghost ${loc.isWinner ? 'text-muted' : 'text-success'}`} onClick={() => promote(loc)}>
+                        <Trophy size={14} /> {loc.isWinner ? t('locations.unpromote') : t('locations.promote')}
+                      </button>
                     )}
                   </div>
                 </div>

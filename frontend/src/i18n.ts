@@ -34,7 +34,7 @@ const fr = {
       website: 'Site web', maps: 'Voir sur la carte', amenities: 'Petits plus', images: 'Images (URL)', addImage: 'Ajouter une image',
       description: 'Description', phone: 'Téléphone', usefulInfo: 'Infos utiles', empty: 'Aucune proposition pour le moment.',
       score: 'Score', vote: 'Voter', myVote: 'Mon vote', rank1: '1er choix', rank2: '2e choix', rank3: '3e choix',
-      noVote: 'Pas de vote', promote: 'Désigner gagnant', winner: 'Choisi', saveVotes: 'Enregistrer mes votes',
+      noVote: 'Pas de vote', promote: 'Désigner gagnant', unpromote: 'Retirer le gagnant', winner: 'Choisi', saveVotes: 'Enregistrer mes votes',
       venueInfo: 'Infos du lieu (final)', addCustomAmenity: 'Autre…',
     },
     venue: {
@@ -174,7 +174,7 @@ const en = {
       website: 'Website', maps: 'View on map', amenities: 'Amenities', images: 'Images (URL)', addImage: 'Add image',
       description: 'Description', phone: 'Phone', usefulInfo: 'Useful info', empty: 'No proposals yet.',
       score: 'Score', vote: 'Vote', myVote: 'My vote', rank1: '1st choice', rank2: '2nd choice', rank3: '3rd choice',
-      noVote: 'No vote', promote: 'Set as winner', winner: 'Chosen', saveVotes: 'Save my votes',
+      noVote: 'No vote', promote: 'Set as winner', unpromote: 'Remove winner', winner: 'Chosen', saveVotes: 'Save my votes',
       venueInfo: 'Venue info (final)', addCustomAmenity: 'Other…',
     },
     venue: {

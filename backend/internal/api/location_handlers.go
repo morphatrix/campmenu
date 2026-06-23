@@ -292,6 +292,17 @@ func (s *Server) handlePromoteLocation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "location introuvable")
 		return
 	}
+	// Toggle: if this location is already the winner, clear it (and the venue info)
+	// so the choice can be undone.
+	var current models.Location
+	if s.DB.First(&current, "id = ?", id).Error == nil && current.IsWinner {
+		s.DB.Model(&models.Location{}).Where("id = ?", id).Update("is_winner", false)
+		s.DB.Model(&models.Event{}).Where("id = ?", eventID).Updates(map[string]any{
+			"venue_address": "", "venue_maps_url": "", "venue_phone": "", "venue_info": "",
+		})
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+		return
+	}
 	s.DB.Model(&models.Location{}).Where("event_id = ?", eventID).Update("is_winner", false)
 	s.DB.Model(&models.Location{}).Where("id = ?", id).Update("is_winner", true)
 
