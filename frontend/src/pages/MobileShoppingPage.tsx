@@ -359,22 +359,38 @@ function MobileRecipes() {
   const { t } = useTranslation()
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [q, setQ] = useState('')
+  const [tag, setTag] = useState('')
   const [selected, setSelected] = useState<Recipe | null>(null)
 
   useEffect(() => { api.get<Recipe[]>('/recipes').then(setRecipes).catch(() => {}) }, [])
 
   if (selected) return <MobileRecipeView recipe={selected} onBack={() => setSelected(null)} />
 
+  const tags = [...new Set(recipes.flatMap((r) => r.tags ?? []))].sort()
   const list = recipes
-    .filter((r) => r.name.toLowerCase().includes(q.trim().toLowerCase()))
+    .filter((r) => r.name.toLowerCase().includes(q.trim().toLowerCase()) && (tag === '' || (r.tags ?? []).includes(tag)))
     .sort((a, b) => a.name.localeCompare(b.name))
 
   return (
     <div>
-      <div className="relative mb-3">
+      <div className="relative mb-2">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
         <input className="input pl-9" placeholder={t('mobile.searchRecipe')} value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
+      {tags.length > 0 && (
+        <div className="-mx-3 mb-3 flex gap-1.5 overflow-x-auto px-3 pb-1">
+          <button onClick={() => setTag('')}
+            className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${tag === '' ? 'border-brand bg-brand text-brand-fg' : 'border-border bg-surface text-muted'}`}>
+            {t('recipes.allTags')}
+          </button>
+          {tags.map((tg) => (
+            <button key={tg} onClick={() => setTag(tg)}
+              className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium capitalize ${tag === tg ? 'border-brand bg-brand text-brand-fg' : 'border-border bg-surface text-muted'}`}>
+              {tg}
+            </button>
+          ))}
+        </div>
+      )}
       {list.length === 0 ? (
         <p className="text-center text-muted">{t('mobile.noRecipes')}</p>
       ) : (

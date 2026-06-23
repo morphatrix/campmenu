@@ -58,6 +58,13 @@ func spoonFactor(unit string) float64 {
 	return 0
 }
 
+// canonicalUnit is normalizeUnit's resulting unit (without a quantity), used to
+// key persisted entries onto the same line as the computed quantities.
+func canonicalUnit(name, unit string) string {
+	u, _ := normalizeUnit(name, unit, 1)
+	return u
+}
+
 // normalizeUnit converts spoons to a coherent base unit so the same ingredient
 // merges: weight (g) for solids, volume (ml) for liquids.
 func normalizeUnit(name, unit string, qty float64) (string, float64) {
@@ -276,10 +283,13 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 	var entries []models.ShoppingEntry
 	s.DB.Where("event_id = ?", eventID).Find(&entries)
 	for _, e := range entries {
-		k := lineKey(e.Section, e.Name, e.Unit)
+		// Match the entry to the normalized line (spoon → g/ml) so its metadata
+		// attaches to the real line instead of spawning a phantom unit row.
+		u := canonicalUnit(e.Name, e.Unit)
+		k := lineKey(e.Section, e.Name, u)
 		l, ok := agg[k]
 		if !ok {
-			l = &shoppingLine{Section: e.Section, Name: e.Name, Unit: e.Unit}
+			l = &shoppingLine{Section: e.Section, Name: e.Name, Unit: u}
 			agg[k] = l
 		}
 		l.Source = e.Source
@@ -294,6 +304,9 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 	out := make([]shoppingLine, 0, len(agg))
 	for _, l := range agg {
 		l.Quantity = math.Round(l.Quantity*100) / 100
+		if l.Quantity == 0 {
+			continue // nothing to buy (e.g. a stale override for a removed item)
+		}
 		l.BoughtQuantity = math.Round(l.BoughtQuantity*100) / 100
 		if l.BoughtQuantity > l.Quantity {
 			l.BoughtQuantity = l.Quantity
