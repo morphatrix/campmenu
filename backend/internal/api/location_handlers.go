@@ -8,8 +8,46 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/morphatrix/campmenu/internal/ai"
 	"github.com/morphatrix/campmenu/internal/models"
 )
+
+type importLocationReq struct {
+	URL string `json:"url"`
+}
+
+// handleImportLocation fetches a lodging web page and asks the configured AI to
+// extract the form fields. Returns 200 + {ok,error|draft} (a 5xx would be turned
+// into an HTML page by the ingress).
+func (s *Server) handleImportLocation(w http.ResponseWriter, r *http.Request) {
+	var req importLocationReq
+	if err := decode(r, &req); err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "corps de requête invalide"})
+		return
+	}
+	cfg := s.aiConfig()
+	if !cfg.Enabled() {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "IA non configurée"})
+		return
+	}
+	page, image, err := ai.FetchAndClean(r.Context(), strings.TrimSpace(req.URL))
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	draft, err := ai.ExtractLocation(r.Context(), cfg, page)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if image != "" {
+		draft.Image = image
+	}
+	if draft.WebsiteURL == "" {
+		draft.WebsiteURL = strings.TrimSpace(req.URL)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "draft": draft})
+}
 
 // parseWeights turns "3,2,1" into [3,2,1]; falls back to [3,2,1] when empty.
 func parseWeights(csv string) []int {

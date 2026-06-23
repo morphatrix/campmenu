@@ -189,6 +189,53 @@ func ExtractRecipe(ctx context.Context, cfg Config, pageText string) (Draft, err
 	return parseDraft(content)
 }
 
+// LocationDraft is the structured lodging returned to prefill the location form.
+type LocationDraft struct {
+	Title       string   `json:"title"`
+	Address     string   `json:"address"`
+	WebsiteURL  string   `json:"websiteUrl"`
+	MapsURL     string   `json:"mapsUrl"`
+	Beds        int      `json:"beds"`
+	SingleBeds  int      `json:"singleBeds"`
+	DoubleBeds  int      `json:"doubleBeds"`
+	Toilets     int      `json:"toilets"`
+	Price       float64  `json:"price"`
+	Phone       string   `json:"phone"`
+	Description string   `json:"description"`
+	Amenities   []string `json:"amenities"`
+	Image       string   `json:"image"`
+}
+
+const locationPrompt = `Tu extrais les informations d'un hébergement / logement de vacances depuis une page web. Réponds UNIQUEMENT avec du JSON minifié valide, sans texte ni balises Markdown, correspondant exactement à ce schéma :
+{"title":string,"address":string,"websiteUrl":string,"mapsUrl":string,"beds":number,"singleBeds":number,"doubleBeds":number,"toilets":number,"price":number,"phone":string,"description":string,"amenities":[string]}
+Règles : "beds" est le nombre total de couchages, "price" le prix total du séjour si indiqué (0 sinon), "amenities" la liste des équipements (wifi, parking, lave-vaisselle, jacuzzi, cheminée…). Mets "" ou 0 quand une information est absente. Garde la langue d'origine. N'invente rien qui ne soit pas sur la page.`
+
+// ExtractLocation sends the cleaned page to the model and parses the lodging.
+func ExtractLocation(ctx context.Context, cfg Config, pageText string) (LocationDraft, error) {
+	ctx, cancel := context.WithTimeout(ctx, aiTimeout)
+	defer cancel()
+	user := "Voici le contenu d'une page web d'hébergement. Extrais-en les informations :\n\n" + pageText
+	var content string
+	var err error
+	if cfg.Provider == "anthropic" {
+		content, err = callAnthropic(ctx, cfg, locationPrompt, user)
+	} else {
+		content, err = callOpenAICompatible(ctx, cfg, locationPrompt, user)
+	}
+	if err != nil {
+		return LocationDraft{}, err
+	}
+	m := reJSON.FindString(content)
+	if m == "" {
+		return LocationDraft{}, fmt.Errorf("réponse de l'IA illisible")
+	}
+	var d LocationDraft
+	if err := json.Unmarshal([]byte(m), &d); err != nil {
+		return LocationDraft{}, fmt.Errorf("réponse de l'IA invalide : %w", err)
+	}
+	return d, nil
+}
+
 // Aisles is the fixed set of supermarket sections an ingredient can be sorted into.
 var Aisles = []string{
 	"Fruits et légumes", "Boucherie", "Poissonnerie", "Crèmerie", "Épicerie salée",

@@ -44,10 +44,10 @@ func (s *Server) Router() http.Handler {
 	})
 
 	r.Route("/api", func(r chi.Router) {
-		r.Use(maxBody(10 << 20))                  // cap request bodies (~10 MiB)
+		r.Use(maxBody(10 << 20))                    // cap request bodies (~10 MiB)
 		r.Use(httprate.LimitByIP(600, time.Minute)) // generous global abuse limit
-		r.Use(s.originGuard)                       // CSRF: reject cross-origin unsafe requests
-		r.Use(s.notifyOnChange)                    // broadcast SSE tick after successful writes
+		r.Use(s.originGuard)                        // CSRF: reject cross-origin unsafe requests
+		r.Use(s.notifyOnChange)                     // broadcast SSE tick after successful writes
 
 		// Public branding for the frontend.
 		r.Get("/config", s.handlePublicConfig)
@@ -107,6 +107,7 @@ func (s *Server) Router() http.Handler {
 
 			// Locations: propose, edit own, vote (podium).
 			r.Get("/events/{eventID}/locations", s.handleListLocations)
+			r.Post("/locations/import", s.handleImportLocation) // AI extraction from a URL
 			r.Post("/events/{eventID}/locations", s.handleCreateLocation)
 			r.Put("/events/{eventID}/votes", s.handleSetVotes)
 			r.Patch("/locations/{id}", s.handleUpdateLocation)

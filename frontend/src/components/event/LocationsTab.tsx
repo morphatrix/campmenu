@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BedDouble, Bath, Euro, MapPin, ExternalLink, Pencil, Plus, Trash2, Trophy, Phone } from 'lucide-react'
+import { BedDouble, Bath, Euro, MapPin, ExternalLink, Loader2, Pencil, Plus, Sparkles, Trash2, Trophy, Phone } from 'lucide-react'
 import { api, resolveAsset } from '../../lib/api'
 import { useLive } from '../../context/LiveContext'
 import { useAuth } from '../../context/AuthContext'
 import Modal from '../Modal'
 import ImageUpload from '../ImageUpload'
-import type { Event, Location, LocationsResponse } from '../../lib/types'
+import type { Event, Location, LocationsResponse, SiteConfig } from '../../lib/types'
+
+interface ImportLocationDraft {
+  title?: string; address?: string; websiteUrl?: string; mapsUrl?: string
+  beds?: number; singleBeds?: number; doubleBeds?: number; toilets?: number
+  price?: number; phone?: string; description?: string; amenities?: string[]; image?: string
+}
 
 const AMENITIES = [
   'Machine à laver', 'Lave-vaisselle', 'Barbecue', 'Voiture de prêt', 'Wifi',
@@ -198,6 +204,55 @@ function LocationForm({
   const [images, setImages] = useState<string[]>(initial?.images?.length ? initial.images : [''])
   const [customAmenity, setCustomAmenity] = useState('')
 
+  // AI import from a URL (only on creation, when an AI provider is configured).
+  const [aiEnabled, setAiEnabled] = useState(false)
+  const [importUrl, setImportUrl] = useState('')
+  const [importing, setImporting] = useState(false)
+  const [progress, setProgress] = useState(0)
+  const [importError, setImportError] = useState('')
+
+  useEffect(() => {
+    if (!initial) api.get<SiteConfig>('/config').then((c) => setAiEnabled(!!c.aiEnabled)).catch(() => {})
+  }, [initial])
+
+  async function importFromUrl() {
+    if (!importUrl.trim()) return
+    setImporting(true)
+    setImportError('')
+    setProgress(8)
+    const timer = setInterval(() => setProgress((p) => (p < 95 ? p + Math.max(0.4, (95 - p) * 0.04) : p)), 900)
+    try {
+      const res = await api.post<{ ok: boolean; draft?: ImportLocationDraft; error?: string }>('/locations/import', { url: importUrl.trim() })
+      if (res.ok && res.draft) {
+        const d = res.draft
+        setF((prev) => ({
+          ...prev,
+          title: d.title || prev.title,
+          address: d.address || prev.address,
+          websiteUrl: d.websiteUrl || prev.websiteUrl,
+          mapsUrl: d.mapsUrl || prev.mapsUrl,
+          beds: d.beds || prev.beds,
+          singleBeds: d.singleBeds || prev.singleBeds,
+          doubleBeds: d.doubleBeds || prev.doubleBeds,
+          toilets: d.toilets || prev.toilets,
+          price: d.price || prev.price,
+          phone: d.phone || prev.phone,
+          description: d.description || prev.description,
+        }))
+        if (d.amenities?.length) setAmenities(d.amenities)
+        if (d.image) setImages([d.image])
+      } else {
+        setImportError(res.error ?? t('recipes.importFailed'))
+      }
+    } catch (e: any) {
+      setImportError(e?.message ?? t('recipes.importFailed'))
+    } finally {
+      clearInterval(timer)
+      setProgress(100)
+      setTimeout(() => setImporting(false), 500)
+    }
+  }
+
   function set<K extends keyof typeof f>(k: K, v: (typeof f)[K]) { setF((s) => ({ ...s, [k]: v })) }
   function toggleAmenity(a: string) {
     setAmenities((s) => (s.includes(a) ? s.filter((x) => x !== a) : [...s, a]))
@@ -222,6 +277,26 @@ function LocationForm({
   return (
     <Modal title={initial ? t('locations.edit') : t('locations.add')} onClose={onClose} wide>
       <div className="space-y-4">
+        {aiEnabled && !initial && (
+          <div className="rounded-lg border border-dashed border-border p-3">
+            <label className="label flex items-center gap-1"><Sparkles size={14} className="text-brand" /> {t('recipes.importTitle')}</label>
+            <div className="flex gap-2">
+              <input className="input" type="url" placeholder="https://…" value={importUrl} onChange={(e) => setImportUrl(e.target.value)} disabled={importing} />
+              <button type="button" className="btn-ghost whitespace-nowrap" onClick={importFromUrl} disabled={importing || !importUrl.trim()}>
+                {importing ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />} {t('recipes.import')}
+              </button>
+            </div>
+            {importing && (
+              <div className="mt-3">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-surface">
+                  <div className="h-2 rounded-full bg-brand transition-all duration-500" style={{ width: `${Math.round(progress)}%` }} />
+                </div>
+                <p className="mt-1 text-xs text-muted">{t('recipes.importing')} {Math.round(progress)}%</p>
+              </div>
+            )}
+            {importError && <p className="mt-2 text-xs text-danger">{importError}</p>}
+          </div>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="label">{t('locations.intitule')}</label>
