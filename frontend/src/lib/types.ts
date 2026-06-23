@@ -141,6 +141,7 @@ export interface Location {
   phone: string
   usefulInfo: string
   description: string
+  observation: string
   amenities: string[]
   images: string[]
   isWinner: boolean

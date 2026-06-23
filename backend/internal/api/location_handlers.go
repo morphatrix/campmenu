@@ -143,6 +143,7 @@ type locationReq struct {
 	Phone       string   `json:"phone"`
 	UsefulInfo  string   `json:"usefulInfo"`
 	Description string   `json:"description"`
+	Observation string   `json:"observation"`
 	Amenities   []string `json:"amenities"`
 	Images      []string `json:"images"`
 }
@@ -171,7 +172,7 @@ func (s *Server) handleCreateLocation(w http.ResponseWriter, r *http.Request) {
 		Title: req.Title, Address: req.Address, WebsiteURL: req.WebsiteURL, MapsURL: req.MapsURL,
 		Beds: req.Beds, SingleBeds: req.SingleBeds, DoubleBeds: req.DoubleBeds, Toilets: req.Toilets,
 		Price: req.Price, Phone: req.Phone, UsefulInfo: req.UsefulInfo, Description: req.Description,
-		Amenities: req.Amenities, Images: req.Images,
+		Observation: req.Observation, Amenities: req.Amenities, Images: req.Images,
 	}
 	if err := s.DB.Create(&loc).Error; err != nil {
 		writeError(w, http.StatusInternalServerError, "création impossible")
@@ -204,6 +205,7 @@ func (s *Server) handleUpdateLocation(w http.ResponseWriter, r *http.Request) {
 		"title": req.Title, "address": req.Address, "website_url": req.WebsiteURL, "maps_url": req.MapsURL,
 		"beds": req.Beds, "single_beds": req.SingleBeds, "double_beds": req.DoubleBeds, "toilets": req.Toilets,
 		"price": req.Price, "phone": req.Phone, "useful_info": req.UsefulInfo, "description": req.Description,
+		"observation": req.Observation,
 		"amenities": models.JSONStrings(req.Amenities), "images": models.JSONStrings(req.Images),
 	}
 	s.DB.Model(&models.Location{}).Where("id = ?", id).Updates(updates)

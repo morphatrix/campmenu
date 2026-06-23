@@ -20,15 +20,9 @@ func (s *Server) canAccessEvent(r *http.Request, eventID uuid.UUID) bool {
 	return count > 0
 }
 
-// effectiveParticipantCount returns the number of counted participants for an
-// event, falling back to InitialParticipants when no roster is set yet.
-func (s *Server) effectiveParticipantCount(eventID uuid.UUID, initial int) int {
-	var count int64
-	s.DB.Model(&models.EventParticipant{}).
-		Where("event_id = ? AND counted = ?", eventID, true).
-		Count(&count)
-	if count == 0 {
-		return initial
-	}
-	return int(count)
+// effectiveParticipantCount returns the participant count used for every
+// computation (quantities, per-person costs): the number defined on the event at
+// creation — NOT how many invitees accepted.
+func (s *Server) effectiveParticipantCount(_ uuid.UUID, initial int) int {
+	return initial
 }

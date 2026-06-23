@@ -154,6 +154,11 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
 
                   {loc.description && <p className="mb-2 line-clamp-5 whitespace-pre-wrap text-sm" title={loc.description}>{loc.description}</p>}
                   {loc.usefulInfo && <p className="mb-2 text-sm text-muted">{loc.usefulInfo}</p>}
+                  {loc.observation && (
+                    <p className="mb-2 rounded-lg bg-surface px-2 py-1 text-sm">
+                      <span className="font-medium text-muted">{t('locations.observation')} : </span>{loc.observation}
+                    </p>
+                  )}
 
                   <div className="flex flex-wrap items-center gap-3 border-t border-border pt-3">
                     {loc.websiteUrl && (
@@ -261,6 +266,7 @@ function LocationForm({
     phone: initial?.phone ?? '',
     usefulInfo: initial?.usefulInfo ?? '',
     description: initial?.description ?? '',
+    observation: initial?.observation ?? '',
   }))
   const [amenities, setAmenities] = useState<string[]>(initial?.amenities ?? [])
   const [images, setImages] = useState<string[]>(initial?.images?.length ? initial.images : [''])
@@ -429,6 +435,11 @@ function LocationForm({
         <div>
           <label className="label">{t('locations.description')}</label>
           <textarea className="input min-h-24" value={f.description} onChange={(e) => set('description', e.target.value)} />
+        </div>
+
+        <div>
+          <label className="label">{t('locations.observation')}</label>
+          <textarea className="input min-h-16" value={f.observation} onChange={(e) => set('observation', e.target.value)} placeholder={t('locations.observationPlaceholder')} />
         </div>
 
         {showVenueInfo && (

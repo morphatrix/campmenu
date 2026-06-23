@@ -229,6 +229,7 @@ type Location struct {
 	Phone       string      `json:"phone"`
 	UsefulInfo  string      `json:"usefulInfo"`
 	Description string      `json:"description"`
+	Observation string      `json:"observation"` // free personal remarks
 	Amenities   JSONStrings `gorm:"type:jsonb" json:"amenities"`
 	Images      JSONStrings `gorm:"type:jsonb" json:"images"`
 	IsWinner    bool        `json:"isWinner"`
