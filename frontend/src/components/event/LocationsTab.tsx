@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BedDouble, Bath, Euro, MapPin, ExternalLink, Loader2, Pencil, Plus, Sparkles, Trash2, Trophy, Phone, Vote } from 'lucide-react'
+import { BedDouble, Bath, ChevronLeft, ChevronRight, Euro, Images, MapPin, ExternalLink, Loader2, Pencil, Plus, Sparkles, Trash2, Trophy, Phone, Vote } from 'lucide-react'
 import { api, resolveAsset } from '../../lib/api'
 import { useLive } from '../../context/LiveContext'
 import { useAuth } from '../../context/AuthContext'
@@ -32,6 +32,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
   const [data, setData] = useState<LocationsResponse | null>(null)
   const [editing, setEditing] = useState<Location | null>(null)
   const [creating, setCreating] = useState(false)
+  const [gallery, setGallery] = useState<Location | null>(null)
 
   async function load() {
     setData(await api.get<LocationsResponse>(`/events/${event.id}/locations`))
@@ -93,11 +94,12 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
             return (
               <div key={loc.id} className={`card overflow-hidden ${loc.isWinner ? 'ring-2 ring-success' : ''}`}>
                 {loc.images.length > 0 && (
-                  <div className="flex gap-1 overflow-x-auto">
-                    {loc.images.map((img, i) => (
-                      <img key={i} src={resolveAsset(img)} alt="" className="h-36 w-56 shrink-0 object-cover" />
-                    ))}
-                  </div>
+                  <button type="button" onClick={() => setGallery(loc)} className="relative block w-full">
+                    <img src={resolveAsset(loc.images[0])} alt="" className="h-40 w-full object-cover" />
+                    <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-card/75 px-2.5 py-1 text-xs font-medium backdrop-blur">
+                      <Images size={13} /> {loc.images.length}
+                    </span>
+                  </button>
                 )}
                 <div className="p-4">
                   <div className="mb-2 flex items-start justify-between gap-2">
@@ -199,7 +201,42 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
           onSaved={() => { setCreating(false); setEditing(null); load() }}
         />
       )}
+
+      {gallery && <GalleryModal images={gallery.images} title={gallery.title} onClose={() => setGallery(null)} />}
     </div>
+  )
+}
+
+// GalleryModal shows a location's photos by URL (no download, just <img> links),
+// with a large view, prev/next and a thumbnail strip.
+function GalleryModal({ images, title, onClose }: { images: string[]; title: string; onClose: () => void }) {
+  const [i, setI] = useState(0)
+  const n = images.length
+  const go = (d: number) => setI((c) => (c + d + n) % n)
+  return (
+    <Modal title={title} onClose={onClose} wider>
+      <div className="space-y-3">
+        <div className="relative">
+          <img src={resolveAsset(images[i])} alt="" className="max-h-[70vh] w-full rounded-lg bg-surface object-contain" />
+          {n > 1 && (
+            <>
+              <button onClick={() => go(-1)} className="absolute left-2 top-1/2 -translate-y-1/2 grid h-9 w-9 place-items-center rounded-full bg-card/80 backdrop-blur hover:bg-card" aria-label="prev"><ChevronLeft size={18} /></button>
+              <button onClick={() => go(1)} className="absolute right-2 top-1/2 -translate-y-1/2 grid h-9 w-9 place-items-center rounded-full bg-card/80 backdrop-blur hover:bg-card" aria-label="next"><ChevronRight size={18} /></button>
+              <span className="absolute bottom-2 right-2 rounded-full bg-card/75 px-2 py-0.5 text-xs backdrop-blur">{i + 1} / {n}</span>
+            </>
+          )}
+        </div>
+        {n > 1 && (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {images.map((img, idx) => (
+              <button key={idx} onClick={() => setI(idx)} className={`shrink-0 overflow-hidden rounded-lg border-2 ${idx === i ? 'border-brand' : 'border-transparent'}`}>
+                <img src={resolveAsset(img)} alt="" className="h-16 w-24 object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </Modal>
   )
 }
 
