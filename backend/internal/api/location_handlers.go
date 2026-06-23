@@ -72,9 +72,15 @@ func (s *Server) locationEventID(id uuid.UUID) (uuid.UUID, uuid.UUID, bool) {
 	return loc.EventID, loc.CreatedBy, true
 }
 
+type voterOut struct {
+	UserID uuid.UUID `json:"userId"`
+	Rank   int       `json:"rank"`
+}
+
 type locationOut struct {
 	models.Location
-	Score int `json:"score"`
+	Score  int        `json:"score"`
+	Voters []voterOut `json:"voters"`
 }
 
 func (s *Server) handleListLocations(w http.ResponseWriter, r *http.Request) {
@@ -97,14 +103,16 @@ func (s *Server) handleListLocations(w http.ResponseWriter, r *http.Request) {
 	var votes []models.LocationVote
 	s.DB.Where("event_id = ?", eventID).Find(&votes)
 
-	// Weighted score per location + the caller's own ranked votes.
+	// Weighted score per location + the caller's own ranked votes + voters list.
 	score := map[uuid.UUID]int{}
+	voters := map[uuid.UUID][]voterOut{}
 	myVotes := map[string]uuid.UUID{}
 	uid := userIDFrom(r)
 	for _, v := range votes {
 		if v.Rank >= 1 && v.Rank <= len(weights) {
 			score[v.LocationID] += weights[v.Rank-1]
 		}
+		voters[v.LocationID] = append(voters[v.LocationID], voterOut{UserID: v.UserID, Rank: v.Rank})
 		if v.UserID == uid {
 			myVotes[strconv.Itoa(v.Rank)] = v.LocationID
 		}
@@ -112,7 +120,7 @@ func (s *Server) handleListLocations(w http.ResponseWriter, r *http.Request) {
 
 	out := make([]locationOut, len(locations))
 	for i, loc := range locations {
-		out[i] = locationOut{Location: loc, Score: score[loc.ID]}
+		out[i] = locationOut{Location: loc, Score: score[loc.ID], Voters: voters[loc.ID]}
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"locations":   out,

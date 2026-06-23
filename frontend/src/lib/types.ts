@@ -145,6 +145,7 @@ export interface Location {
   images: string[]
   isWinner: boolean
   score: number
+  voters?: { userId: string; rank: number }[]
 }
 
 export interface LocationsResponse {

@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BedDouble, Bath, Euro, MapPin, ExternalLink, Loader2, Pencil, Plus, Sparkles, Trash2, Trophy, Phone } from 'lucide-react'
+import { BedDouble, Bath, Euro, MapPin, ExternalLink, Loader2, Pencil, Plus, Sparkles, Trash2, Trophy, Phone, Vote } from 'lucide-react'
 import { api, resolveAsset } from '../../lib/api'
 import { useLive } from '../../context/LiveContext'
 import { useAuth } from '../../context/AuthContext'
+import { displayName } from '../../lib/types'
 import Modal from '../Modal'
+import Avatar from '../Avatar'
 import ImageUpload from '../ImageUpload'
-import type { Event, Location, LocationsResponse, SiteConfig } from '../../lib/types'
+import type { Event, Location, LocationsResponse, SiteConfig, User } from '../../lib/types'
 
 interface ImportLocationDraft {
   title?: string; address?: string; websiteUrl?: string; mapsUrl?: string
@@ -36,6 +38,13 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
   }
   useEffect(() => { load() }, [event.id])
   useLive(load)
+
+  // Resolve voter ids to participant users (for avatars, like the participants list).
+  const userById = useMemo(() => {
+    const m = new Map<string, User>()
+    ;(event.participants ?? []).forEach((p) => { if (p.user) m.set(p.userId, p.user) })
+    return m
+  }, [event.participants])
 
   if (!data) return <p className="text-muted">{t('common.loading')}</p>
 
@@ -125,6 +134,19 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                   {loc.amenities.length > 0 && (
                     <div className="mb-2 flex flex-wrap gap-1">
                       {loc.amenities.map((a) => <span key={a} className="chip">{a}</span>)}
+                    </div>
+                  )}
+
+                  {loc.voters && loc.voters.length > 0 && (
+                    <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 text-xs text-muted">
+                        <Vote size={13} /> {loc.voters.length}
+                      </span>
+                      {[...loc.voters].sort((a, b) => a.rank - b.rank).map((v) => (
+                        <span key={v.userId} title={`${displayName(userById.get(v.userId)) || '?'} · n°${v.rank}`}>
+                          <Avatar user={userById.get(v.userId)} size={22} />
+                        </span>
+                      ))}
                     </div>
                   )}
 
