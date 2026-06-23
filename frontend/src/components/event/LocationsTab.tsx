@@ -172,6 +172,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
           eventId={event.id}
           initial={editing}
           showVenueInfo={isAdmin}
+          participants={effectiveParticipants}
           onClose={() => { setCreating(false); setEditing(null) }}
           onSaved={() => { setCreating(false); setEditing(null); load() }}
         />
@@ -181,9 +182,9 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
 }
 
 function LocationForm({
-  eventId, initial, showVenueInfo, onClose, onSaved,
+  eventId, initial, showVenueInfo, participants, onClose, onSaved,
 }: {
-  eventId: string; initial: Location | null; showVenueInfo: boolean; onClose: () => void; onSaved: () => void
+  eventId: string; initial: Location | null; showVenueInfo: boolean; participants: number; onClose: () => void; onSaved: () => void
 }) {
   const { t } = useTranslation()
   const [f, setF] = useState(() => ({
@@ -317,6 +318,9 @@ function LocationForm({
         <div className="sm:w-1/2">
           <label className="label">{t('locations.price')}</label>
           <input className="input" type="number" min={0} step="0.01" value={f.price || ''} onChange={(e) => set('price', +e.target.value)} />
+          {f.price > 0 && participants > 0 && (
+            <p className="mt-1 text-xs text-muted">= {Math.round((f.price / participants) * 100) / 100} €{t('locations.perPerson')} ({participants} {t('menu.persons')})</p>
+          )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
