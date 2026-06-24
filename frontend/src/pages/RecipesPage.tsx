@@ -1,6 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, ChefHat, Loader2, Pencil, Plus, Sparkles, Trash2, Users, Wine, X } from 'lucide-react'
+import { Check, ChefHat, GripVertical, Loader2, Pencil, Plus, Sparkles, Trash2, Users, Wine, X } from 'lucide-react'
+import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { api, resolveAsset } from '../lib/api'
 import { useLive } from '../context/LiveContext'
 import { useAuth } from '../context/AuthContext'
@@ -11,9 +14,32 @@ import { isCocktail, isStaff } from '../lib/types'
 import type { Recipe, SiteConfig } from '../lib/types'
 
 interface DraftIngredient { name: string; quantity: number; unit: string }
+interface Step { id: string; text: string }
+let stepSeq = 0
+const newStep = (text = ''): Step => ({ id: `s${Date.now()}_${stepSeq++}`, text })
 interface ImportDraft { name: string; basePersons: number; photoUrl?: string; ingredients: DraftIngredient[]; steps: string[] }
 
 const PREDEFINED_TAGS = ['apéro', 'entrée', 'plat', 'accompagnement', 'dessert', 'petit-déjeuner', 'boisson']
+
+// SortableStep is one draggable instruction row (drag handle + numbered input).
+function SortableStep({
+  step, index, placeholder, onChange, onRemove,
+}: {
+  step: Step; index: number; placeholder: string; onChange: (v: string) => void; onRemove: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
+  return (
+    <div ref={setNodeRef} style={style} className="flex items-center gap-2">
+      <button type="button" className="shrink-0 cursor-grab touch-none text-muted hover:text-fg active:cursor-grabbing" {...attributes} {...listeners}>
+        <GripVertical size={16} />
+      </button>
+      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand text-xs font-semibold text-brand-fg">{index + 1}</span>
+      <input className="input" value={step.text} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+      <button type="button" className="btn-ghost" onClick={onRemove}><X size={15} /></button>
+    </div>
+  )
+}
 
 export default function RecipesPage({ cocktails = false }: { cocktails?: boolean }) {
   const { t } = useTranslation()
@@ -176,10 +202,20 @@ function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial
   const [basePersons, setBasePersons] = useState(initial?.basePersons ?? (forceCocktail ? 1 : 6))
   const [photoUrl, setPhotoUrl] = useState(initial?.photoUrl ?? '')
   const [tags, setTags] = useState<string[]>(initial?.tags ?? (forceCocktail ? ['cocktail'] : ['plat']))
-  const [steps, setSteps] = useState<string[]>(() => {
+  const [steps, setSteps] = useState<Step[]>(() => {
     const list = (initial?.instructions ?? '').split('\n').map((l) => l.trim()).filter(Boolean)
-    return list.length ? list : ['']
+    return (list.length ? list : ['']).map((s) => newStep(s))
   })
+  const stepSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  function onStepDragEnd(e: DragEndEvent) {
+    const { active, over } = e
+    if (!over || active.id === over.id) return
+    setSteps((list) => {
+      const from = list.findIndex((s) => s.id === active.id)
+      const to = list.findIndex((s) => s.id === over.id)
+      return from < 0 || to < 0 ? list : arrayMove(list, from, to)
+    })
+  }
   const [ingredients, setIngredients] = useState<DraftIngredient[]>(
     initial?.ingredients?.length
       ? initial.ingredients.map((ri) => ({ name: ri.ingredient?.canonicalName ?? '', quantity: ri.quantity, unit: ri.unit }))
@@ -215,7 +251,7 @@ function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial
         if (d.basePersons) setBasePersons(d.basePersons)
         if (d.photoUrl) setPhotoUrl(d.photoUrl)
         if (d.ingredients?.length) setIngredients(d.ingredients.map((i) => ({ name: i.name ?? '', quantity: i.quantity ?? 0, unit: i.unit ?? '' })))
-        if (d.steps?.length) setSteps(d.steps)
+        if (d.steps?.length) setSteps(d.steps.map((s) => newStep(s)))
       } else {
         setImportError(res.error ?? t('recipes.importFailed'))
       }
@@ -231,14 +267,14 @@ function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial
   function setIng(i: number, patch: Partial<DraftIngredient>) {
     setIngredients((list) => list.map((it, idx) => (idx === i ? { ...it, ...patch } : it)))
   }
-  function setStep(i: number, val: string) { setSteps((list) => list.map((s, idx) => (idx === i ? val : s))) }
+  function setStep(id: string, val: string) { setSteps((list) => list.map((s) => (s.id === id ? { ...s, text: val } : s))) }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     const finalTags = forceCocktail && !tags.includes('cocktail') ? ['cocktail', ...tags] : tags
     const body = {
       name, basePersons, coefficient: 1, photoUrl, tags: finalTags,
-      instructions: steps.map((s) => s.trim()).filter(Boolean).join('\n'),
+      instructions: steps.map((s) => s.text.trim()).filter(Boolean).join('\n'),
       ingredients: ingredients.filter((i) => i.name.trim()),
     }
     if (initial) await api.patch(`/recipes/${initial.id}`, body)
@@ -311,16 +347,23 @@ function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial
 
         <div>
           <label className="label">{t('recipes.instructions')} <span className="text-xs font-normal text-muted">({t('recipes.oneStepPerLine')})</span></label>
-          <div className="space-y-2">
-            {steps.map((step, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand text-xs font-semibold text-brand-fg">{i + 1}</span>
-                <input className="input" value={step} onChange={(e) => setStep(i, e.target.value)} placeholder={`${t('recipes.step')} ${i + 1}`} />
-                <button type="button" className="btn-ghost" onClick={() => setSteps((l) => (l.length > 1 ? l.filter((_, idx) => idx !== i) : ['']))}><X size={15} /></button>
+          <DndContext sensors={stepSensors} onDragEnd={onStepDragEnd}>
+            <SortableContext items={steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2">
+                {steps.map((step, i) => (
+                  <SortableStep
+                    key={step.id}
+                    step={step}
+                    index={i}
+                    placeholder={`${t('recipes.step')} ${i + 1}`}
+                    onChange={(v) => setStep(step.id, v)}
+                    onRemove={() => setSteps((l) => (l.length > 1 ? l.filter((s) => s.id !== step.id) : [newStep('')]))}
+                  />
+                ))}
               </div>
-            ))}
-          </div>
-          <button type="button" className="btn-ghost mt-2" onClick={() => setSteps((l) => [...l, ''])}><Plus size={15} /> {t('recipes.addStep')}</button>
+            </SortableContext>
+          </DndContext>
+          <button type="button" className="btn-ghost mt-2" onClick={() => setSteps((l) => [...l, newStep('')])}><Plus size={15} /> {t('recipes.addStep')}</button>
         </div>
 
         <div className="flex justify-end gap-2">
