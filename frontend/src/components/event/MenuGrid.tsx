@@ -6,7 +6,6 @@ import {
 import { Trash2, GripVertical } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useLive } from '../../context/LiveContext'
-import { isCocktail } from '../../lib/types'
 import type { Event, Meal, MealType, Recipe } from '../../lib/types'
 
 const MEAL_TYPES: MealType[] = ['BREAKFAST', 'LUNCH', 'DINNER', 'APERITIF', 'DESSERT']
@@ -93,8 +92,7 @@ export default function MenuGrid({ event, effectiveParticipants }: { event: Even
   }
   useEffect(() => {
     loadMeals()
-    // Cocktails are managed in the Apéro tab, not dropped on the menu grid.
-    api.get<Recipe[]>('/recipes').then((r) => setRecipes(r.filter((x) => x.approved && !isCocktail(x))))
+    api.get<Recipe[]>('/recipes').then((r) => setRecipes(r.filter((x) => x.approved)))
   }, [event.id])
 
   const tags = useMemo(() => [...new Set(recipes.flatMap((r) => r.tags ?? []))].sort(), [recipes])
