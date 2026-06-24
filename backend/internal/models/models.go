@@ -169,6 +169,7 @@ type EventTab struct {
 	Removable         bool         `gorm:"default:true" json:"removable"`
 	WithRecipes       bool         `gorm:"default:false" json:"withRecipes"` // custom tab: free list vs recipe-backed
 	Voted             bool         `gorm:"default:true" json:"voted"`        // true: participant consumption; false: organizer-set totals
+	Adhoc             bool         `gorm:"default:false" json:"adhoc"`       // participant top-up list (mobile), never voted, not on desktop
 	ListID            *uuid.UUID   `gorm:"type:uuid" json:"listId"`          // source ProductList, if any
 	Sections          JSONStrings  `gorm:"type:jsonb" json:"sections"`       // ordered section names for grouping
 	ConsumptionLabels JSONMap      `gorm:"type:jsonb" json:"consumptionLabels"`

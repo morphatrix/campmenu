@@ -1,12 +1,12 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, CalendarDays, ChefHat, ChevronRight, Eye, EyeOff, LogOut, Search, ShoppingCart, SlidersHorizontal, Store, Tent, Users } from 'lucide-react'
+import { ArrowLeft, CalendarDays, ChefHat, ChevronRight, Eye, EyeOff, ListPlus, LogOut, Plus, Search, ShoppingCart, SlidersHorizontal, Store, Tent, Trash2, Users } from 'lucide-react'
 import { api, ApiError, resolveAsset } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import { useLive } from '../context/LiveContext'
 import { displayName } from '../lib/types'
-import type { Event, EventParticipant, Recipe, ShoppingLine, User } from '../lib/types'
+import type { Event, EventParticipant, EventTab, Recipe, ShoppingLine, TabArticle, User } from '../lib/types'
 import Avatar from '../components/Avatar'
 import UserInfoModal from '../components/UserInfoModal'
 import IbanRequestsBell from '../components/IbanRequestsBell'
@@ -131,11 +131,12 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
   const { t } = useTranslation()
   const [event, setEvent] = useState<Event | null>(null)
   const [lines, setLines] = useState<ShoppingLine[]>([])
-  const [tab, setTab] = useState<'courses' | 'participants' | 'recipes'>('courses')
+  const [tab, setTab] = useState<'courses' | 'lists' | 'participants' | 'recipes'>('courses')
   const [showFilters, setShowFilters] = useState(false)
   const [hideBought, setHideBought] = useState(false)
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set())
   const [broughtBy, setBroughtBy] = useState('') // '' = all, 'none' = unassigned, else userId
+  const [listFilter, setListFilter] = useState('') // '' = all, else a source list name
   const [byAisle, setByAisle] = useState(false)
   const [aiEnabled, setAiEnabled] = useState(false)
   useEffect(() => { api.get<{ aiEnabled?: boolean }>('/config').then((c) => setAiEnabled(!!c.aiEnabled)).catch(() => {}) }, [])
@@ -175,8 +176,15 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
     if (hiddenSections.has(l.section || '')) return false
     if (broughtBy === 'none' && l.broughtBy) return false
     if (broughtBy && broughtBy !== 'none' && l.broughtBy !== broughtBy) return false
+    if (listFilter && !(l.lists || []).includes(listFilter)) return false
     return true
   })
+
+  const allLists = useMemo(() => {
+    const set = new Set<string>()
+    for (const l of lines) for (const n of l.lists || []) set.add(n)
+    return [...set].sort((a, b) => a.localeCompare(b))
+  }, [lines])
 
   const groups = useMemo(() => {
     const map = new Map<string, ShoppingLine[]>()
@@ -189,12 +197,12 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
   }, [filtered, byAisle, t])
 
   const boughtCount = lines.filter((l) => l.bought).length
-  const activeFilters = (hideBought ? 1 : 0) + hiddenSections.size + (broughtBy ? 1 : 0)
+  const activeFilters = (hideBought ? 1 : 0) + hiddenSections.size + (broughtBy ? 1 : 0) + (listFilter ? 1 : 0)
 
   function toggleSection(key: string) {
     setHiddenSections((s) => { const n = new Set(s); n.has(key) ? n.delete(key) : n.add(key); return n })
   }
-  function resetFilters() { setHideBought(false); setHiddenSections(new Set()); setBroughtBy('') }
+  function resetFilters() { setHideBought(false); setHiddenSections(new Set()); setBroughtBy(''); setListFilter('') }
 
   return (
     <div className="min-h-screen pb-24">
@@ -273,6 +281,15 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
                 <button onClick={resetFilters} className="rounded-lg px-2 py-1 text-xs text-brand">{t('mobile.reset')}</button>
               )}
             </div>
+            {allLists.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase text-muted">{t('mobile.byList')}</span>
+                <select className="input h-8 flex-1 py-1 text-sm" value={listFilter} onChange={(e) => setListFilter(e.target.value)}>
+                  <option value="">{t('mobile.all')}</option>
+                  {allLists.map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+            )}
           </div>
         )}
         </>
@@ -282,6 +299,8 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
       <main className="mx-auto max-w-md px-3 py-4">
         {tab === 'recipes' ? (
           <MobileRecipes />
+        ) : tab === 'lists' ? (
+          <MobileAdhocLists eventId={eventId} onChanged={loadLines} />
         ) : tab === 'participants' ? (
           <MobileParticipants participants={participants} />
         ) : filtered.length === 0 ? (
@@ -308,6 +327,10 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
           className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs font-medium ${tab === 'courses' ? 'text-brand' : 'text-muted'}`}>
           <ShoppingCart size={20} /> {t('mobile.tabShopping')}
         </button>
+        <button onClick={() => setTab('lists')}
+          className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs font-medium ${tab === 'lists' ? 'text-brand' : 'text-muted'}`}>
+          <ListPlus size={20} /> {t('mobile.tabLists')}
+        </button>
         <button onClick={() => setTab('participants')}
           className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-xs font-medium ${tab === 'participants' ? 'text-brand' : 'text-muted'}`}>
           <Users size={20} /> {t('mobile.tabParticipants')}
@@ -318,6 +341,114 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
         </button>
       </nav>
     </div>
+  )
+}
+
+// MobileAdhocLists manages event-private "top-up" lists: free lists any
+// participant can create during the event to complete the shopping. Their items
+// flow straight into the shopping list and are never subject to votes.
+type AdhocList = EventTab & { articles?: TabArticle[] }
+
+function MobileAdhocLists({ eventId, onChanged }: { eventId: string; onChanged: () => void }) {
+  const { t } = useTranslation()
+  const [lists, setLists] = useState<AdhocList[]>([])
+  const [loading, setLoading] = useState(true)
+  const [newName, setNewName] = useState('')
+
+  async function load() {
+    const res = await api.get<AdhocList[]>(`/events/${eventId}/adhoc-lists`)
+    setLists(res)
+    setLoading(false)
+  }
+  useEffect(() => { load() }, [eventId])
+
+  async function createList(e: FormEvent) {
+    e.preventDefault()
+    const name = newName.trim()
+    if (!name) return
+    setNewName('')
+    await api.post(`/events/${eventId}/adhoc-lists`, { name })
+    await load()
+  }
+  async function deleteList(id: string) {
+    if (!confirm(t('mobile.adhocDeleteList'))) return
+    await api.del(`/adhoc-lists/${id}`)
+    await load()
+    onChanged()
+  }
+
+  if (loading) return <p className="text-center text-muted">…</p>
+  return (
+    <div className="space-y-4">
+      <p className="px-1 text-xs text-muted">{t('mobile.adhocIntro')}</p>
+      <form onSubmit={createList} className="flex items-center gap-2">
+        <input
+          className="input h-10 flex-1"
+          placeholder={t('mobile.adhocNewList')}
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+        />
+        <button type="submit" disabled={!newName.trim()} className="btn-primary h-10 px-3 disabled:opacity-50">
+          <Plus size={18} />
+        </button>
+      </form>
+      {lists.length === 0 ? (
+        <p className="text-center text-muted">{t('mobile.adhocEmpty')}</p>
+      ) : (
+        lists.map((l) => (
+          <AdhocListCard key={l.id} list={l} onChanged={() => { load(); onChanged() }} onDelete={() => deleteList(l.id)} />
+        ))
+      )}
+    </div>
+  )
+}
+
+function AdhocListCard({ list, onChanged, onDelete }: { list: AdhocList; onChanged: () => void; onDelete: () => void }) {
+  const { t } = useTranslation()
+  const [name, setName] = useState('')
+  const [qty, setQty] = useState('')
+  const [unit, setUnit] = useState('')
+  const articles = list.articles ?? []
+
+  async function addItem(e: FormEvent) {
+    e.preventDefault()
+    const n = name.trim()
+    if (!n) return
+    setName(''); setQty(''); setUnit('')
+    await api.post(`/adhoc-lists/${list.id}/items`, { name: n, unit: unit.trim(), quantity: parseFloat(qty) || 0 })
+    onChanged()
+  }
+  async function removeItem(id: string) {
+    await api.del(`/adhoc-items/${id}`)
+    onChanged()
+  }
+
+  return (
+    <section className="card p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="min-w-0 truncate font-semibold">{list.name}</h3>
+        <button onClick={onDelete} className="shrink-0 rounded-lg p-1 text-muted hover:text-danger"><Trash2 size={16} /></button>
+      </div>
+      {articles.length > 0 && (
+        <ul className="mb-2 space-y-1">
+          {articles.map((a) => (
+            <li key={a.id} className="flex items-center gap-2 rounded-lg bg-surface px-2 py-1.5 text-sm">
+              <span className="min-w-0 flex-1 truncate">{a.name}</span>
+              {(a.quantity > 0 || a.unit) && (
+                <span className="shrink-0 text-xs text-muted">{a.quantity > 0 ? a.quantity : ''} {a.unit}</span>
+              )}
+              <button onClick={() => removeItem(a.id)} className="shrink-0 text-muted hover:text-danger"><Trash2 size={14} /></button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form onSubmit={addItem} className="flex items-center gap-1.5">
+        <input className="input h-9 flex-1 text-sm" placeholder={t('mobile.adhocItemName')} value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="input h-9 w-14 text-sm" placeholder={t('mobile.adhocQty')} inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
+        <input className="input h-9 w-14 text-sm" placeholder={t('mobile.adhocUnit')} value={unit} onChange={(e) => setUnit(e.target.value)} />
+        <button type="submit" disabled={!name.trim()} className="btn-primary h-9 px-2 disabled:opacity-50"><Plus size={16} /></button>
+      </form>
+    </section>
   )
 }
 

@@ -93,6 +93,14 @@ func (s *Server) Router() http.Handler {
 			r.Get("/events/{eventID}/shopping", s.handleGetShoppingList)
 			r.Patch("/events/{eventID}/shopping", s.handleUpdateShoppingLine)
 
+			// Ad-hoc top-up lists (any participant, never voted, mobile).
+			r.Get("/events/{eventID}/adhoc-lists", s.handleListAdhocLists)
+			r.Post("/events/{eventID}/adhoc-lists", s.handleCreateAdhocList)
+			r.Delete("/adhoc-lists/{tabID}", s.handleDeleteAdhocList)
+			r.Post("/adhoc-lists/{tabID}/items", s.handleAddAdhocItem)
+			r.Patch("/adhoc-items/{articleID}", s.handleUpdateAdhocItem)
+			r.Delete("/adhoc-items/{articleID}", s.handleDeleteAdhocItem)
+
 			// Collaborative menu planning.
 			r.Patch("/meals/{mealID}", s.handleUpdateMeal)
 			r.Post("/meals/{mealID}/recipes", s.handleAddMealRecipe)

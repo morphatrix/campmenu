@@ -141,7 +141,7 @@ func (s *Server) handleGetEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	var event models.Event
 	if err := s.DB.
-		Preload("Tabs", func(db *gorm.DB) *gorm.DB { return db.Order("position asc") }).
+		Preload("Tabs", func(db *gorm.DB) *gorm.DB { return db.Where("adhoc = ?", false).Order("position asc") }).
 		Preload("Tabs.Articles", func(db *gorm.DB) *gorm.DB { return db.Order("position asc") }).
 		Preload("Tabs.Recipes.Recipe.Ingredients.Ingredient").
 		Preload("Participants.User").

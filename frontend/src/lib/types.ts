@@ -230,6 +230,7 @@ export interface ShoppingLine {
   boughtQuantity: number
   broughtBy?: string | null
   aisle?: string
+  lists?: string[]
 }
 
 export interface TabConsumption {

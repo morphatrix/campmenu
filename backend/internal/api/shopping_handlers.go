@@ -90,7 +90,17 @@ type shoppingLine struct {
 	Bought         bool       `json:"bought"`         // derived: bought quantity covers the total
 	BoughtQuantity float64    `json:"boughtQuantity"` // how much is already bought
 	BroughtBy      *uuid.UUID `json:"broughtBy"`
-	Aisle          string     `json:"aisle"` // supermarket section (AI-classified, may be empty)
+	Aisle          string     `json:"aisle"`  // supermarket section (AI-classified, may be empty)
+	Lists          []string   `json:"lists"`  // source lists/tabs (menu, tab names) feeding this line
+}
+
+func appendUnique(s []string, v string) []string {
+	for _, x := range s {
+		if x == v {
+			return s
+		}
+	}
+	return append(s, v)
 }
 
 // applyAisles fills each line's Aisle from the cache and asynchronously asks the
@@ -179,6 +189,7 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 	effective := s.effectiveParticipantCount(eventID, event.InitialParticipants)
 
 	agg := map[string]*shoppingLine{}
+	curSource := "" // name of the list/tab currently feeding `add` (for the "by list" filter)
 	add := func(section, name, unit string, ingredientID *uuid.UUID, qty float64) {
 		if strings.TrimSpace(name) == "" || qty == 0 {
 			return
@@ -187,14 +198,18 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 		// splitting into separate "cuillère" lines.
 		unit, qty = normalizeUnit(name, unit, qty)
 		k := lineKey(section, name, unit)
-		if l, ok := agg[k]; ok {
-			l.Quantity += qty
-			if l.IngredientID == nil {
-				l.IngredientID = ingredientID
-			}
-			return
+		l, ok := agg[k]
+		if !ok {
+			l = &shoppingLine{Section: strings.TrimSpace(section), Name: strings.TrimSpace(name), Unit: unit}
+			agg[k] = l
 		}
-		agg[k] = &shoppingLine{Section: strings.TrimSpace(section), Name: strings.TrimSpace(name), Unit: unit, Quantity: qty, IngredientID: ingredientID}
+		l.Quantity += qty
+		if l.IngredientID == nil {
+			l.IngredientID = ingredientID
+		}
+		if curSource != "" {
+			l.Lists = appendUnique(l.Lists, curSource)
+		}
 	}
 
 	// addRecipe expands a recipe's ingredients scaled to a serving count.
@@ -224,6 +239,7 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 	var meals []models.Meal
 	s.DB.Preload("Recipes.Recipe.Ingredients.Ingredient").Preload("RawItems").
 		Where("event_id = ?", eventID).Find(&meals)
+	curSource = "Menus"
 	for _, meal := range meals {
 		base := effective
 		if meal.ParticipantCount != nil {
@@ -247,6 +263,10 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 	s.DB.Preload("Articles").Preload("Recipes.Recipe.Ingredients.Ingredient").
 		Where("event_id = ? AND kind = ?", eventID, models.TabMatrix).Find(&tabs)
 	for _, tab := range tabs {
+		curSource = strings.TrimSpace(tab.Name)
+		if curSource == "" {
+			curSource = "Liste"
+		}
 		if tab.Voted {
 			var cons []models.TabConsumption
 			s.DB.Where("tab_id = ?", tab.ID).Find(&cons)
