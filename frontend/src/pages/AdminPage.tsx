@@ -6,6 +6,7 @@ import { api } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
 import Modal from '../components/Modal'
 import Avatar from '../components/Avatar'
+import PasswordFields, { isStrongPassword } from '../components/PasswordFields'
 import { isAdmin as roleIsAdmin, isStaff } from '../lib/types'
 import { PALETTES } from '../lib/appearance'
 import type { Invite, Role, User } from '../lib/types'
@@ -304,6 +305,7 @@ function EditUserModal({ user, onClose, onSaved }: { user: User; onClose: () => 
 function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void }) {
   const { t } = useTranslation()
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
 
@@ -319,14 +321,14 @@ function ResetPasswordModal({ user, onClose }: { user: User; onClose: () => void
   return (
     <Modal title={`${t('admin.resetPassword')} · ${user.firstName}`} onClose={onClose}>
       <div className="space-y-3">
-        <div><label className="label">{t('admin.newPassword')}</label><input className="input" type="text" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="min. 8 caractères" /></div>
+        <PasswordFields password={password} confirm={confirm} setPassword={setPassword} setConfirm={setConfirm} />
         {error && <p className="text-sm text-danger">{error}</p>}
         {done ? (
           <p className="text-sm text-success">{t('admin.saved')}</p>
         ) : (
           <div className="flex justify-end gap-2 pt-2">
             <button className="btn-ghost" onClick={onClose}>{t('common.cancel')}</button>
-            <button className="btn-primary" onClick={save} disabled={password.length < 8}>{t('common.save')}</button>
+            <button className="btn-primary" onClick={save} disabled={!isStrongPassword(password) || password !== confirm}>{t('common.save')}</button>
           </div>
         )}
       </div>

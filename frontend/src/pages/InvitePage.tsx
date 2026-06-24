@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Tent } from 'lucide-react'
 import { api, ApiError } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import PasswordFields, { isStrongPassword } from '../components/PasswordFields'
 
 export default function InvitePage() {
   const { code = '' } = useParams()
@@ -13,6 +14,7 @@ export default function InvitePage() {
   const [valid, setValid] = useState<boolean | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [error, setError] = useState('')
@@ -76,12 +78,9 @@ export default function InvitePage() {
             <label className="label">{t('auth.email')}</label>
             <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </div>
-          <div>
-            <label className="label">{t('auth.password')}</label>
-            <input className="input" type="password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required />
-          </div>
+          <PasswordFields password={password} confirm={confirm} setPassword={setPassword} setConfirm={setConfirm} />
           {error && <p className="text-sm text-danger">{error}</p>}
-          <button className="btn-primary w-full">{t('auth.signUp')}</button>
+          <button className="btn-primary w-full" disabled={!isStrongPassword(password) || password !== confirm}>{t('auth.signUp')}</button>
         </form>
       </div>
     </div>

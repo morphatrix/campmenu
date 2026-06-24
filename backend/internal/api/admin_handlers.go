@@ -123,8 +123,8 @@ func (s *Server) handleAdminResetPassword(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadRequest, "corps de requête invalide")
 		return
 	}
-	if len(req.Password) < 8 {
-		writeError(w, http.StatusBadRequest, "mot de passe d'au moins 8 caractères")
+	if err := validatePassword(req.Password); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	hash, err := auth.HashPassword(req.Password, s.Cfg.BcryptCost)

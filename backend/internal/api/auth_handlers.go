@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -47,6 +48,28 @@ func (s *Server) sendConfirmationOrLog(email, token string) {
 			"email", email, "error", err,
 			"link", s.Settings.Get(settings.KeyAppURL)+"/confirm/"+token)
 	}
+}
+
+// validatePassword enforces the password policy: at least 8 characters with a
+// lowercase, an uppercase, a digit and a special character.
+func validatePassword(pw string) error {
+	var lower, upper, digit, special bool
+	for _, r := range pw {
+		switch {
+		case unicode.IsLower(r):
+			lower = true
+		case unicode.IsUpper(r):
+			upper = true
+		case unicode.IsDigit(r):
+			digit = true
+		case unicode.IsPunct(r) || unicode.IsSymbol(r):
+			special = true
+		}
+	}
+	if len([]rune(pw)) < 8 || !lower || !upper || !digit || !special {
+		return errors.New("mot de passe : 8 caractères minimum avec une minuscule, une majuscule, un chiffre et un caractère spécial")
+	}
+	return nil
 }
 
 // ---- invitations ----
@@ -151,8 +174,12 @@ func (s *Server) handleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
-	if req.Email == "" || len(req.Password) < 8 {
-		writeError(w, http.StatusBadRequest, "email requis et mot de passe d'au moins 8 caractères")
+	if req.Email == "" {
+		writeError(w, http.StatusBadRequest, "email requis")
+		return
+	}
+	if err := validatePassword(req.Password); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -445,8 +472,8 @@ func (s *Server) handleResetPasswordPublic(w http.ResponseWriter, r *http.Reques
 		writeError(w, http.StatusBadRequest, "corps de requête invalide")
 		return
 	}
-	if len(req.Password) < 8 {
-		writeError(w, http.StatusBadRequest, "mot de passe d'au moins 8 caractères")
+	if err := validatePassword(req.Password); err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 	var user models.User

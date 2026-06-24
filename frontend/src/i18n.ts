@@ -10,6 +10,9 @@ const fr = {
     impersonate: { as: 'Se faire passer pour', banner: 'Mode test — connecté en tant que {{name}}', exit: "Revenir à l'admin" },
     auth: {
       login: 'Connexion', register: 'Créer un compte', email: 'Email', password: 'Mot de passe',
+      confirmPassword: 'Confirmer le mot de passe',
+      passwordRules: 'Au moins 8 caractères, avec une minuscule, une majuscule, un chiffre et un caractère spécial.',
+      passwordMismatch: 'Les mots de passe ne correspondent pas.',
       firstName: 'Prénom', lastName: 'Nom', signIn: 'Se connecter', signUp: "S'inscrire",
       confirmRequired: 'Vérifiez votre boîte mail pour confirmer votre adresse.',
       confirmed: 'Email confirmé ! Vous pouvez vous connecter.', confirming: 'Confirmation…',
@@ -151,6 +154,9 @@ const en = {
     impersonate: { as: 'Impersonate', banner: 'Test mode — signed in as {{name}}', exit: 'Back to admin' },
     auth: {
       login: 'Sign in', register: 'Create account', email: 'Email', password: 'Password',
+      confirmPassword: 'Confirm password',
+      passwordRules: 'At least 8 characters, with a lowercase, an uppercase, a digit and a special character.',
+      passwordMismatch: 'Passwords do not match.',
       firstName: 'First name', lastName: 'Last name', signIn: 'Sign in', signUp: 'Sign up',
       confirmRequired: 'Check your inbox to confirm your email address.',
       confirmed: 'Email confirmed! You can now sign in.', confirming: 'Confirming…',

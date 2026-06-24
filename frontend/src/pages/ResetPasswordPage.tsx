@@ -3,11 +3,13 @@ import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { KeyRound } from 'lucide-react'
 import { api, ApiError } from '../lib/api'
+import PasswordFields, { isStrongPassword } from '../components/PasswordFields'
 
 export default function ResetPasswordPage() {
   const { token = '' } = useParams()
   const { t } = useTranslation()
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
 
@@ -36,12 +38,9 @@ export default function ResetPasswordPage() {
           </div>
         ) : (
           <form onSubmit={onSubmit} className="space-y-4">
-            <div>
-              <label className="label">{t('auth.password')}</label>
-              <input className="input" type="password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required />
-            </div>
+            <PasswordFields password={password} confirm={confirm} setPassword={setPassword} setConfirm={setConfirm} />
             {error && <p className="text-sm text-danger">{error}</p>}
-            <button className="btn-primary w-full">{t('common.save')}</button>
+            <button className="btn-primary w-full" disabled={!isStrongPassword(password) || password !== confirm}>{t('common.save')}</button>
           </form>
         )}
       </div>
