@@ -235,10 +235,12 @@ function NonVotedMatrix({ tab, isAdmin, effectiveParticipants, onChange }: Props
   const articles = tab.articles ?? []
   const recipes = tab.recipes ?? []
   const [cocktails, setCocktails] = useState<Recipe[]>([])
+  const [units, setUnits] = useState<string[]>([])
   const [newSection, setNewSection] = useState('')
 
   useEffect(() => {
     api.get<Recipe[]>('/recipes').then((r) => setCocktails(r.filter((x) => isCocktail(x) && x.approved)))
+    api.get<{ name: string }[]>('/units').then((u) => setUnits(u.map((x) => x.name))).catch(() => {})
   }, [])
 
   // Ordered groups: tab.sections first, then any leftover sections, then unsectioned.
@@ -252,6 +254,11 @@ function NonVotedMatrix({ tab, isAdmin, effectiveParticipants, onChange }: Props
 
   async function setQuantity(art: TabArticle, quantity: number) {
     await api.patch(`/articles/${art.id}`, { name: art.name, unit: art.unit, section: art.section, quantity })
+    onChange()
+  }
+  async function setArticleUnit(art: TabArticle, unit: string) {
+    if (unit === art.unit) return
+    await api.patch(`/articles/${art.id}`, { name: art.name, unit, section: art.section, quantity: art.quantity })
     onChange()
   }
   async function removeArticle(id: string) { await api.del(`/articles/${id}`); onChange() }
@@ -271,6 +278,9 @@ function NonVotedMatrix({ tab, isAdmin, effectiveParticipants, onChange }: Props
 
   return (
     <div className="space-y-6">
+      <datalist id="matrix-units">
+        {units.map((u) => <option key={u} value={u} />)}
+      </datalist>
       {groups.map((section) => {
         const arts = articles.filter((a) => (a.section || '') === section)
         const recs = recipes.filter((r) => (r.section || '') === section)
@@ -287,7 +297,7 @@ function NonVotedMatrix({ tab, isAdmin, effectiveParticipants, onChange }: Props
             <ul className="divide-y divide-border">
               {arts.map((art) => (
                 <li key={art.id} className="flex items-center justify-between gap-2 py-1.5 text-sm">
-                  <span className="font-medium">{art.name} <span className="text-xs text-muted">{art.unit}</span></span>
+                  <span className="font-medium">{art.name}</span>
                   <span className="flex items-center gap-2">
                     {isAdmin ? (
                       <input className="input h-8 w-20 py-1 text-right" type="number" step="0.1" defaultValue={art.quantity || ''}
@@ -295,7 +305,12 @@ function NonVotedMatrix({ tab, isAdmin, effectiveParticipants, onChange }: Props
                     ) : (
                       <span className="inline-block w-20 text-right font-semibold tabular-nums">{art.quantity}</span>
                     )}
-                    <span className="text-muted">{art.unit}</span>
+                    {isAdmin ? (
+                      <input list="matrix-units" className="input h-8 w-20 py-1" defaultValue={art.unit}
+                        onBlur={(e) => setArticleUnit(art, e.target.value.trim())} />
+                    ) : (
+                      <span className="text-muted">{art.unit}</span>
+                    )}
                     {isAdmin && <button className="text-danger" onClick={() => removeArticle(art.id)}><Trash2 size={14} /></button>}
                   </span>
                 </li>
@@ -356,7 +371,7 @@ function AddToSection({ tab, section, cocktails, onAdded }: { tab: EventTab; sec
   return (
     <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-border pt-3">
       <input className="input w-40" placeholder={t('matrix.article')} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addArticle()} />
-      <input className="input w-20" placeholder="unité" value={unit} onChange={(e) => setUnit(e.target.value)} />
+      <input list="matrix-units" className="input w-20" placeholder="unité" value={unit} onChange={(e) => setUnit(e.target.value)} />
       <input className="input w-20" type="number" step="0.1" placeholder="qté" value={qty || ''} onChange={(e) => setQty(+e.target.value)} />
       <button className="btn-ghost" onClick={addArticle}><Plus size={15} /> {t('matrix.addArticle')}</button>
       {cocktails.length > 0 && section.toLowerCase().includes('cocktail') && (

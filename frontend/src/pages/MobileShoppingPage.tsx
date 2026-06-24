@@ -352,6 +352,7 @@ type AdhocList = EventTab & { articles?: TabArticle[] }
 function MobileAdhocLists({ eventId, onChanged }: { eventId: string; onChanged: () => void }) {
   const { t } = useTranslation()
   const [lists, setLists] = useState<AdhocList[]>([])
+  const [units, setUnits] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [newName, setNewName] = useState('')
 
@@ -361,6 +362,7 @@ function MobileAdhocLists({ eventId, onChanged }: { eventId: string; onChanged: 
     setLoading(false)
   }
   useEffect(() => { load() }, [eventId])
+  useEffect(() => { api.get<{ name: string }[]>('/units').then((u) => setUnits(u.map((x) => x.name))).catch(() => {}) }, [])
 
   async function createList(e: FormEvent) {
     e.preventDefault()
@@ -380,6 +382,9 @@ function MobileAdhocLists({ eventId, onChanged }: { eventId: string; onChanged: 
   if (loading) return <p className="text-center text-muted">…</p>
   return (
     <div className="space-y-4">
+      <datalist id="adhoc-units">
+        {units.map((u) => <option key={u} value={u} />)}
+      </datalist>
       <p className="px-1 text-xs text-muted">{t('mobile.adhocIntro')}</p>
       <form onSubmit={createList} className="flex items-center gap-2">
         <input
@@ -439,7 +444,7 @@ function AdhocListCard({ list, onChanged, onDelete }: { list: AdhocList; onChang
       <form onSubmit={addItem} className="flex items-center gap-1.5">
         <input className="input h-9 flex-1 text-sm" placeholder={t('mobile.adhocItemName')} value={name} onChange={(e) => setName(e.target.value)} />
         <input className="input h-9 w-14 text-sm" placeholder={t('mobile.adhocQty')} inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />
-        <input className="input h-9 w-14 text-sm" placeholder={t('mobile.adhocUnit')} value={unit} onChange={(e) => setUnit(e.target.value)} />
+        <input list="adhoc-units" className="input h-9 w-14 text-sm" placeholder={t('mobile.adhocUnit')} value={unit} onChange={(e) => setUnit(e.target.value)} />
         <button type="submit" disabled={!name.trim()} className="btn-primary h-9 px-2 disabled:opacity-50"><Plus size={16} /></button>
       </form>
     </section>
@@ -479,6 +484,7 @@ function AdhocItemRow({ article, onChanged, onRemove }: { article: TabArticle; o
         inputMode="decimal" placeholder={t('mobile.adhocQty')} value={qty} onChange={(e) => setQty(e.target.value)} onBlur={save}
       />
       <input
+        list="adhoc-units"
         className="input h-8 w-12 border-transparent bg-transparent px-1 text-center text-sm focus:border-border focus:bg-card"
         placeholder={t('mobile.adhocUnit')} value={unit} onChange={(e) => setUnit(e.target.value)} onBlur={save}
       />
