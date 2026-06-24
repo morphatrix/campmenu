@@ -174,7 +174,11 @@ func (s *Server) handleUpdateAdhocItem(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "corps de requête invalide")
 		return
 	}
-	updates := map[string]any{"name": strings.TrimSpace(req.Name), "unit": strings.TrimSpace(req.Unit), "quantity": req.Quantity}
+	qty := req.Quantity
+	if qty <= 0 {
+		qty = 1 // keep the item on the shopping list even with no quantity entered
+	}
+	updates := map[string]any{"name": strings.TrimSpace(req.Name), "unit": strings.TrimSpace(req.Unit), "quantity": qty}
 	s.DB.Model(&models.TabArticle{}).Where("id = ?", art.ID).Updates(updates)
 	var fresh models.TabArticle
 	s.DB.First(&fresh, "id = ?", art.ID)

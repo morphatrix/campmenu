@@ -432,13 +432,7 @@ function AdhocListCard({ list, onChanged, onDelete }: { list: AdhocList; onChang
       {articles.length > 0 && (
         <ul className="mb-2 space-y-1">
           {articles.map((a) => (
-            <li key={a.id} className="flex items-center gap-2 rounded-lg bg-surface px-2 py-1.5 text-sm">
-              <span className="min-w-0 flex-1 truncate">{a.name}</span>
-              {(a.quantity > 0 || a.unit) && (
-                <span className="shrink-0 text-xs text-muted">{a.quantity > 0 ? a.quantity : ''} {a.unit}</span>
-              )}
-              <button onClick={() => removeItem(a.id)} className="shrink-0 text-muted hover:text-danger"><Trash2 size={14} /></button>
-            </li>
+            <AdhocItemRow key={a.id} article={a} onChanged={onChanged} onRemove={() => removeItem(a.id)} />
           ))}
         </ul>
       )}
@@ -449,6 +443,47 @@ function AdhocListCard({ list, onChanged, onDelete }: { list: AdhocList; onChang
         <button type="submit" disabled={!name.trim()} className="btn-primary h-9 px-2 disabled:opacity-50"><Plus size={16} /></button>
       </form>
     </section>
+  )
+}
+
+// AdhocItemRow shows one top-up item with inline-editable name, quantity and
+// unit. Edits save on blur (PATCH) and refresh the shopping list.
+function AdhocItemRow({ article, onChanged, onRemove }: { article: TabArticle; onChanged: () => void; onRemove: () => void }) {
+  const { t } = useTranslation()
+  const [name, setName] = useState(article.name)
+  const [qty, setQty] = useState(article.quantity ? String(article.quantity) : '')
+  const [unit, setUnit] = useState(article.unit)
+
+  useEffect(() => {
+    setName(article.name)
+    setQty(article.quantity ? String(article.quantity) : '')
+    setUnit(article.unit)
+  }, [article.id, article.name, article.quantity, article.unit])
+
+  async function save() {
+    const n = name.trim()
+    if (!n) { setName(article.name); return } // name is required; revert empties
+    if (n === article.name && (parseFloat(qty) || 0) === article.quantity && unit.trim() === article.unit) return
+    await api.patch(`/adhoc-items/${article.id}`, { name: n, unit: unit.trim(), quantity: parseFloat(qty) || 0 })
+    onChanged()
+  }
+
+  return (
+    <li className="flex items-center gap-1.5 rounded-lg bg-surface px-2 py-1.5 text-sm">
+      <input
+        className="input h-8 min-w-0 flex-1 border-transparent bg-transparent px-1 text-sm focus:border-border focus:bg-card"
+        value={name} onChange={(e) => setName(e.target.value)} onBlur={save}
+      />
+      <input
+        className="input h-8 w-12 border-transparent bg-transparent px-1 text-center text-sm focus:border-border focus:bg-card"
+        inputMode="decimal" placeholder={t('mobile.adhocQty')} value={qty} onChange={(e) => setQty(e.target.value)} onBlur={save}
+      />
+      <input
+        className="input h-8 w-12 border-transparent bg-transparent px-1 text-center text-sm focus:border-border focus:bg-card"
+        placeholder={t('mobile.adhocUnit')} value={unit} onChange={(e) => setUnit(e.target.value)} onBlur={save}
+      />
+      <button onClick={onRemove} className="shrink-0 text-muted hover:text-danger"><Trash2 size={14} /></button>
+    </li>
   )
 }
 
