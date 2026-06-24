@@ -108,6 +108,10 @@ func (s *Server) handleCreateAdhocList(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "création de la liste impossible")
 		return
 	}
+	// GORM omits a zero value (false) when the column has a default (voted has
+	// default:true), so force voted=false — an ad-hoc list is never voted.
+	s.DB.Model(&models.EventTab{}).Where("id = ?", tab.ID).Update("voted", false)
+	tab.Voted = false
 	writeJSON(w, http.StatusCreated, tab)
 }
 
