@@ -7,6 +7,12 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Fresh deployments no longer auto-seed demo recipes/cocktails (Mojito, Margarita, etc.). Existing deployments keep whatever was already seeded.
+
+### Fixed
+- Ingredient autocomplete now also works on non-voted (organizer) matrix lists, not just voted ones.
+
 ## [0.1.0] - 2026-08-01
 
 First tagged release. CampMenu was already in daily use before this point;
