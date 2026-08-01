@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Plus, Trash2, X, Wine, Save } from 'lucide-react'
 import { api } from '../../lib/api'
+import IngredientInput from '../IngredientInput'
 import { useLive } from '../../context/LiveContext'
 import { useAuth } from '../../context/AuthContext'
 import { displayName, isCocktail } from '../../lib/types'
@@ -212,7 +213,7 @@ function AddVotedArticle({ tab, event, existing, onAdded }: { tab: EventTab; eve
         </div>
       )}
       <div className="flex flex-wrap items-end gap-2">
-        <div><label className="label">{t('matrix.newArticle')}</label><input className="input w-44" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addManual()} /></div>
+        <div><label className="label">{t('matrix.newArticle')}</label><IngredientInput className="input w-44" value={name} onChange={setName} onPickUnit={setUnit} onKeyDown={(e) => e.key === 'Enter' && addManual()} /></div>
         <div><label className="label">unité</label><input className="input w-24" value={unit} onChange={(e) => setUnit(e.target.value)} /></div>
         <div>
           <label className="label">qté niv.1/2/3</label>

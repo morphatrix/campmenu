@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { api } from '../lib/api'
 
 interface Suggestion {
@@ -14,10 +14,14 @@ export default function IngredientInput({
   value,
   onChange,
   onPickUnit,
+  className,
+  onKeyDown,
 }: {
   value: string
   onChange: (v: string) => void
   onPickUnit?: (unit: string) => void
+  className?: string
+  onKeyDown?: (e: KeyboardEvent<HTMLInputElement>) => void
 }) {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [open, setOpen] = useState(false)
@@ -43,11 +47,12 @@ export default function IngredientInput({
   return (
     <div className="relative">
       <input
-        className="input"
+        className={className ?? 'input'}
         value={value}
         onChange={(e) => { onChange(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onKeyDown={onKeyDown}
         placeholder="ingrédient"
       />
       {open && suggestions.length > 0 && (
