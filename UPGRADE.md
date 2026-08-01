@@ -29,3 +29,15 @@ toute entrée modifiant la base de données est signalée par un bloc
 Les migrations s'appliquent une par une et dans l'ordre : impossible de sauter
 une version ou d'en appliquer une hors séquence. La version de schéma actuelle
 et la prochaine migration en attente sont toujours visibles dans cet écran.
+
+## Rétrocompatibilité : le site reste utilisable pendant la transition
+
+Une migration bien écrite ne casse jamais le site, que la base ait déjà été
+mise à jour ou pas encore : elle doit rester purement additive (nouvelle
+colonne/table non encore utilisée par le code) et jamais destructive en une
+seule étape (pas de `DROP COLUMN`/`RENAME` sur un champ que l'ancien code lit
+encore). Confirmé en pratique : après avoir appliqué la migration de
+démonstration sur `campmenu-dev` (Admin → Mise à jour), le site est resté
+pleinement fonctionnel sans qu'aucun changement de code/`REPO_REF` n'ait
+encore été fait. C'est cette propriété qui permet de traiter Cas 1 et Cas 2
+indépendamment, dans n'importe quel ordre.
