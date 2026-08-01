@@ -33,6 +33,7 @@ func setSchemaVersion(db *gorm.DB, version int) error {
 type pendingMigration struct {
 	Version     int    `json:"version"`
 	Description string `json:"description"`
+	AppVersion  string `json:"appVersion,omitempty"`
 }
 
 type upgradeStatusResp struct {
@@ -44,7 +45,7 @@ func (s *Server) handleUpgradeStatus(w http.ResponseWriter, _ *http.Request) {
 	current := getSchemaVersion(s.DB)
 	resp := upgradeStatusResp{CurrentVersion: current, Pending: []pendingMigration{}}
 	for _, m := range migrations.Pending(current) {
-		resp.Pending = append(resp.Pending, pendingMigration{Version: m.Version, Description: m.Description})
+		resp.Pending = append(resp.Pending, pendingMigration{Version: m.Version, Description: m.Description, AppVersion: m.AppVersion})
 	}
 	writeJSON(w, http.StatusOK, resp)
 }

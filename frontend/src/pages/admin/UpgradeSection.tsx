@@ -49,6 +49,11 @@ export default function UpgradeSection() {
       ) : (
         <div className="space-y-3">
           <p className="text-sm">{t('admin.upgradeNextPending', { version: next.version, description: next.description })}</p>
+          {next.appVersion && (
+            <p className="rounded-lg border border-border bg-surface p-2 text-xs text-muted">
+              {t('admin.upgradeRepoRef', { appVersion: next.appVersion })}
+            </p>
+          )}
           {status.pending.length > 1 && (
             <p className="text-xs text-muted">{t('admin.upgradeOtherPending', { count: status.pending.length - 1 })}</p>
           )}

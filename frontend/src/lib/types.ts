@@ -356,6 +356,7 @@ export interface ImportCommitResult {
 export interface PendingMigration {
   version: number
   description: string
+  appVersion?: string
 }
 
 export interface UpgradeStatus {

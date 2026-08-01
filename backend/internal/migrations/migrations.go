@@ -22,7 +22,12 @@ type Migration struct {
 	Version     int
 	Filename    string
 	Description string
-	SQL         string
+	// AppVersion is the git tag/REPO_REF this migration was authored for
+	// (from a "-- version: vX.Y.Z" header line in the file), so the admin UI
+	// can tell the operator which code version to point REPO_REF at. Empty
+	// if the file has no such header.
+	AppVersion string
+	SQL        string
 }
 
 // Statements splits the migration's SQL into individual statements. Each is
@@ -58,7 +63,10 @@ func All() []Migration {
 		if err != nil {
 			continue
 		}
-		out = append(out, Migration{Version: version, Filename: e.Name(), Description: description, SQL: string(content)})
+		out = append(out, Migration{
+			Version: version, Filename: e.Name(), Description: description,
+			AppVersion: parseAppVersion(string(content)), SQL: string(content),
+		})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Version < out[j].Version })
 	return out
@@ -77,6 +85,18 @@ func parseFilename(name string) (version int, description string, ok bool) {
 		return 0, "", false
 	}
 	return v, strings.ReplaceAll(parts[1], "_", " "), true
+}
+
+// parseAppVersion extracts "v0.2.0" from a "-- version: v0.2.0" header line,
+// if present anywhere in the file (any line order).
+func parseAppVersion(content string) string {
+	for _, line := range strings.Split(content, "\n") {
+		line = strings.TrimSpace(line)
+		if rest, ok := strings.CutPrefix(line, "-- version:"); ok {
+			return strings.TrimSpace(rest)
+		}
+	}
+	return ""
 }
 
 // Pending returns migrations with a version strictly greater than current.
