@@ -16,7 +16,6 @@ func Run(db *gorm.DB, cfg *config.Config) {
 	bootstrapAdmin(db, cfg)
 	seedUnits(db)
 	seedIngredients(db)
-	seedRecipeLibrary(db)
 	seedProductCatalogs(db)
 }
 
