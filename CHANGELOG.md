@@ -7,6 +7,9 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Admin section: export/import of recipes, cocktails, event history and users (including password hash) as a portable JSON bundle, with a preview step before importing.
+
 ### Changed
 - Fresh deployments no longer auto-seed demo recipes/cocktails (Mojito, Margarita, etc.). Existing deployments keep whatever was already seeded.
 
