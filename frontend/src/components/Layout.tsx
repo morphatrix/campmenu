@@ -8,6 +8,7 @@ import { useActiveEvent } from '../context/ActiveEventContext'
 import { displayName, isAdmin, isStaff } from '../lib/types'
 import type { SiteConfig } from '../lib/types'
 import IbanRequestsBell from './IbanRequestsBell'
+import UpgradeNotice from './UpgradeNotice'
 
 export default function Layout() {
   const { t } = useTranslation()
@@ -62,6 +63,7 @@ export default function Layout() {
           </button>
         </div>
       )}
+      {isAdmin(user) && !user?.impersonating && <UpgradeNotice />}
       <header className="sticky top-0 z-20 border-b border-border bg-card/80 backdrop-blur" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2 font-semibold text-brand">

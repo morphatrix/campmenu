@@ -147,6 +147,9 @@ const fr = {
       upgradeDryRunOk: 'Test réussi : la migration s\'applique proprement.',
       upgradeApplyOk: 'Migration appliquée, base de données à jour en v{{version}}.',
       upgradeFailed: 'Échec : {{error}}',
+      upgradeBanner: '{{count}} mise(s) à jour de base de données en attente.',
+      upgradeBannerAction: 'Voir', upgradeWizardTitle: 'Mise à jour de la base de données',
+      upgradeLater: 'Plus tard',
     },
     settings: {
       branding: 'Apparence du site', siteName: 'Nom du site', logoUrl: 'Logo (URL)', defaultTheme: 'Thème par défaut',
@@ -314,6 +317,9 @@ const en = {
       upgradeDryRunOk: 'Test passed: the migration applies cleanly.',
       upgradeApplyOk: 'Migration applied, database is now at v{{version}}.',
       upgradeFailed: 'Failed: {{error}}',
+      upgradeBanner: '{{count}} pending database update(s).',
+      upgradeBannerAction: 'View', upgradeWizardTitle: 'Database upgrade',
+      upgradeLater: 'Later',
     },
     settings: {
       branding: 'Appearance', siteName: 'Site name', logoUrl: 'Logo (URL)', defaultTheme: 'Default theme',
