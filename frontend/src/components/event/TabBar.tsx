@@ -48,7 +48,7 @@ export default function TabBar({
   const [choice, setChoice] = useState('')
   const [newListName, setNewListName] = useState('')
   const [newListVoted, setNewListVoted] = useState(true)
-  const [newListEventOnly, setNewListEventOnly] = useState(false)
+  const [newListEventOnly, setNewListEventOnly] = useState(true)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function TabBar({
     }
     setChoice('')
     setNewListName('')
-    setNewListEventOnly(false)
+    setNewListEventOnly(true)
     setAdding(false)
     onChange()
   }
