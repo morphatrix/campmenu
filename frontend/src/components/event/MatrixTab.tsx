@@ -371,7 +371,7 @@ function AddToSection({ tab, section, cocktails, onAdded }: { tab: EventTab; sec
 
   return (
     <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-border pt-3">
-      <input className="input w-40" placeholder={t('matrix.article')} value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addArticle()} />
+      <IngredientInput className="input w-40" value={name} onChange={setName} onPickUnit={setUnit} onKeyDown={(e) => e.key === 'Enter' && addArticle()} />
       <input list="matrix-units" className="input w-20" placeholder="unité" value={unit} onChange={(e) => setUnit(e.target.value)} />
       <input className="input w-20" type="number" step="0.1" placeholder="qté" value={qty || ''} onChange={(e) => setQty(+e.target.value)} />
       <button className="btn-ghost" onClick={addArticle}><Plus size={15} /> {t('matrix.addArticle')}</button>
