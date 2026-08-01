@@ -11,8 +11,9 @@ import { isAdmin as roleIsAdmin, isStaff } from '../lib/types'
 import { PALETTES } from '../lib/appearance'
 import type { Invite, Role, User } from '../lib/types'
 import TransferSection from './admin/TransferSection'
+import UpgradeSection from './admin/UpgradeSection'
 
-type Section = 'invites' | 'users' | 'settings' | 'transfer'
+type Section = 'invites' | 'users' | 'settings' | 'transfer' | 'upgrade'
 
 export default function AdminPage() {
   const { t } = useTranslation()
@@ -27,6 +28,7 @@ export default function AdminPage() {
     { id: 'users', label: t('admin.users') },
     ...(admin ? [{ id: 'settings' as Section, label: t('admin.settings') }] : []),
     ...(admin ? [{ id: 'transfer' as Section, label: t('admin.transfer') }] : []),
+    ...(admin ? [{ id: 'upgrade' as Section, label: t('admin.upgrade') }] : []),
   ]
 
   return (
@@ -50,6 +52,7 @@ export default function AdminPage() {
       {section === 'users' && <UsersSection admin={admin} />}
       {admin && section === 'settings' && <SettingsSection />}
       {admin && section === 'transfer' && <TransferSection />}
+      {admin && section === 'upgrade' && <UpgradeSection />}
     </div>
   )
 }

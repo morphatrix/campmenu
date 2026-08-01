@@ -206,6 +206,10 @@ func (s *Server) Router() http.Handler {
 				r.Post("/export", s.handleExport)
 				r.Post("/import/preview", s.handleImportPreview)
 				r.Post("/import/commit", s.handleImportCommit)
+
+				r.Get("/upgrade", s.handleUpgradeStatus)
+				r.Post("/upgrade/dry-run", s.handleDryRunUpgrade)
+				r.Post("/upgrade/apply", s.handleApplyUpgrade)
 			})
 		})
 	})

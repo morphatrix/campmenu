@@ -17,6 +17,18 @@ func Run(db *gorm.DB, cfg *config.Config) {
 	seedUnits(db)
 	seedIngredients(db)
 	seedProductCatalogs(db)
+	seedSchemaVersion(db)
+}
+
+// seedSchemaVersion records the baseline schema version (1) the first time
+// this boots against a database that doesn't have one yet — never
+// overwrites an existing value, so it does not reset progress made by the
+// admin "Mise à jour" migrations (see internal/migrations).
+func seedSchemaVersion(db *gorm.DB) {
+	var row models.AppSetting
+	db.Where(models.AppSetting{Key: "SCHEMA_VERSION"}).
+		Attrs(models.AppSetting{Value: "1"}).
+		FirstOrCreate(&row)
 }
 
 // seedProductCatalogs creates the reusable non-voted lists (Apéro, Indispensables)

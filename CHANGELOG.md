@@ -9,6 +9,11 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Admin section: export/import of recipes, cocktails, event history and users (including password hash) as a portable JSON bundle, with a preview step before importing.
+- Admin section: "Mise à jour" — versioned SQL migrations for schema changes AutoMigrate can't safely do on its own (renames, backfills), applied one at a time with a dry-run step. See `UPGRADE.md`.
+
+### ⚠️ Base de données
+- Adds a `SCHEMA_VERSION` setting (defaults to `1` on existing installs, no action needed).
+- Demo migration `0002_add_demo_notes_column` (harmless, inert column) is available in Admin → Mise à jour to verify the pipeline — see `UPGRADE.md` Cas 2.
 
 ### Changed
 - Fresh deployments no longer auto-seed demo recipes/cocktails (Mojito, Margarita, etc.). Existing deployments keep whatever was already seeded.

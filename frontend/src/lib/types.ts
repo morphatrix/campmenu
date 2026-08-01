@@ -350,3 +350,20 @@ export interface ImportCommitResult {
   importedEvents: number
   skipped: string[]
 }
+
+// ---- Admin: database upgrade (versioned SQL migrations) ----
+
+export interface PendingMigration {
+  version: number
+  description: string
+}
+
+export interface UpgradeStatus {
+  currentVersion: number
+  pending: PendingMigration[]
+}
+
+export interface UpgradeResult {
+  ok: boolean
+  error?: string
+}
