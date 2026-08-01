@@ -223,6 +223,18 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Never serialize nil slices as JSON null — the frontend always expects
+	// arrays it can .filter()/.map() directly, even when a category is empty.
+	if bundle.Recipes == nil {
+		bundle.Recipes = []RecipeExport{}
+	}
+	if bundle.Events == nil {
+		bundle.Events = []EventExport{}
+	}
+	if bundle.Users == nil {
+		bundle.Users = []UserExport{}
+	}
+
 	writeJSON(w, http.StatusOK, bundle)
 }
 
@@ -334,6 +346,15 @@ func (s *Server) exportEvent(idStr string) (EventExport, error) {
 				ArticleIndex: idx, UserEmail: s.emailByID(c.UserID), Level: c.Level,
 			})
 		}
+		if te.Articles == nil {
+			te.Articles = []TabArticleExport{}
+		}
+		if te.Recipes == nil {
+			te.Recipes = []TabRecipeExport{}
+		}
+		if te.Consumptions == nil {
+			te.Consumptions = []TabConsumptionExport{}
+		}
 		out.Tabs = append(out.Tabs, te)
 	}
 
@@ -352,6 +373,12 @@ func (s *Server) exportEvent(idStr string) (EventExport, error) {
 			me.RawItems = append(me.RawItems, MealRawItemExport{
 				IngredientName: s.ingredientNameByID(ri.IngredientID), Name: ri.Name, Quantity: ri.Quantity, Unit: ri.Unit,
 			})
+		}
+		if me.Recipes == nil {
+			me.Recipes = []MealRecipeExport{}
+		}
+		if me.RawItems == nil {
+			me.RawItems = []MealRawItemExport{}
 		}
 		out.Meals = append(out.Meals, me)
 	}
@@ -395,6 +422,25 @@ func (s *Server) exportEvent(idStr string) (EventExport, error) {
 		})
 	}
 
+	if out.Participants == nil {
+		out.Participants = []ParticipantExport{}
+	}
+	if out.Tabs == nil {
+		out.Tabs = []TabExport{}
+	}
+	if out.Meals == nil {
+		out.Meals = []MealExport{}
+	}
+	if out.Locations == nil {
+		out.Locations = []LocationExport{}
+	}
+	if out.LocationVotes == nil {
+		out.LocationVotes = []LocationVoteExport{}
+	}
+	if out.Shopping == nil {
+		out.Shopping = []ShoppingEntryExport{}
+	}
+
 	return out, nil
 }
 
@@ -422,7 +468,7 @@ func (s *Server) handleImportPreview(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "fichier invalide")
 		return
 	}
-	var resp previewResp
+	resp := previewResp{Recipes: []previewItem{}, Events: []previewItem{}, Users: []previewItem{}}
 	for _, rc := range bundle.Recipes {
 		var count int64
 		s.DB.Model(&models.Recipe{}).Where("LOWER(name) = LOWER(?)", rc.Name).Count(&count)
@@ -482,7 +528,7 @@ func (s *Server) handleImportCommit(w http.ResponseWriter, r *http.Request) {
 	selEvents := toSet(req.Selections.Events)
 	selUsers := toSet(req.Selections.Users)
 
-	var resp commitResp
+	resp := commitResp{Skipped: []string{}}
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
 		for _, u := range req.Bundle.Users {
 			if !selUsers[strings.ToLower(u.Email)] {

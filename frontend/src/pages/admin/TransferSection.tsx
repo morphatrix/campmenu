@@ -160,10 +160,10 @@ function ImportPanel() {
     setBundle(parsed)
     setResult(null)
     const p = await api.post<ImportPreview>('/import/preview', parsed)
-    setPreview(p)
-    setSelRecipeKeys(new Set(p.recipes.filter((i) => !i.exists).map((i) => i.key)))
-    setSelEventKeys(new Set(p.events.filter((i) => !i.exists).map((i) => i.key)))
-    setSelUserKeys(new Set(p.users.filter((i) => !i.exists).map((i) => i.key)))
+    setPreview({ recipes: p.recipes ?? [], events: p.events ?? [], users: p.users ?? [] })
+    setSelRecipeKeys(new Set((p.recipes ?? []).filter((i) => !i.exists).map((i) => i.key)))
+    setSelEventKeys(new Set((p.events ?? []).filter((i) => !i.exists).map((i) => i.key)))
+    setSelUserKeys(new Set((p.users ?? []).filter((i) => !i.exists).map((i) => i.key)))
   }
 
   async function doCommit() {
@@ -190,12 +190,12 @@ function ImportPanel() {
       {preview && (
         <div className="grid gap-4 sm:grid-cols-2">
           <PreviewList
-            label={t('admin.transferRecipes')} items={preview.recipes.filter((i) => !isCocktail(bundle?.recipes.find((r) => r.name === i.key) ?? {}))}
+            label={t('admin.transferRecipes')} items={preview.recipes.filter((i) => !isCocktail(bundle?.recipes?.find((r) => r.name === i.key) ?? {}))}
             selected={selRecipeKeys} onToggle={(k) => setSelRecipeKeys((s) => toggle(s, k))}
             onSelectAllConflicts={() => setSelRecipeKeys((s) => new Set([...s, ...preview.recipes.filter((i) => i.exists).map((i) => i.key)]))}
           />
           <PreviewList
-            label={t('admin.transferCocktails')} items={preview.recipes.filter((i) => isCocktail(bundle?.recipes.find((r) => r.name === i.key) ?? {}))}
+            label={t('admin.transferCocktails')} items={preview.recipes.filter((i) => isCocktail(bundle?.recipes?.find((r) => r.name === i.key) ?? {}))}
             selected={selRecipeKeys} onToggle={(k) => setSelRecipeKeys((s) => toggle(s, k))}
             onSelectAllConflicts={() => setSelRecipeKeys((s) => new Set([...s, ...preview.recipes.filter((i) => i.exists).map((i) => i.key)]))}
           />
