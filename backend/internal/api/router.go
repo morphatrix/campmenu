@@ -202,6 +202,10 @@ func (s *Server) Router() http.Handler {
 				r.Post("/settings/ai-test", s.handleTestAI)
 				r.Get("/settings/db", s.handleGetDBConfig)
 				r.Patch("/settings/db", s.handleUpdateDBConfig)
+
+				r.Post("/export", s.handleExport)
+				r.Post("/import/preview", s.handleImportPreview)
+				r.Post("/import/commit", s.handleImportCommit)
 			})
 		})
 	})

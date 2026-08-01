@@ -10,8 +10,9 @@ import PasswordFields, { isStrongPassword } from '../components/PasswordFields'
 import { isAdmin as roleIsAdmin, isStaff } from '../lib/types'
 import { PALETTES } from '../lib/appearance'
 import type { Invite, Role, User } from '../lib/types'
+import TransferSection from './admin/TransferSection'
 
-type Section = 'invites' | 'users' | 'settings'
+type Section = 'invites' | 'users' | 'settings' | 'transfer'
 
 export default function AdminPage() {
   const { t } = useTranslation()
@@ -25,6 +26,7 @@ export default function AdminPage() {
     { id: 'invites', label: t('admin.invites') },
     { id: 'users', label: t('admin.users') },
     ...(admin ? [{ id: 'settings' as Section, label: t('admin.settings') }] : []),
+    ...(admin ? [{ id: 'transfer' as Section, label: t('admin.transfer') }] : []),
   ]
 
   return (
@@ -47,6 +49,7 @@ export default function AdminPage() {
       {section === 'invites' && <InvitesSection admin={admin} />}
       {section === 'users' && <UsersSection admin={admin} />}
       {admin && section === 'settings' && <SettingsSection />}
+      {admin && section === 'transfer' && <TransferSection />}
     </div>
   )
 }

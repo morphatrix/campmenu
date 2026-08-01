@@ -268,3 +268,85 @@ export interface SiteConfig {
   defaultPalette: string
   aiEnabled?: boolean
 }
+
+// ---- Export / Import (admin data transfer) ----
+
+export interface RecipeExport {
+  name: string
+  basePersons: number
+  coefficient: number
+  photoUrl: string
+  instructions: string
+  kind: string
+  tags: string[]
+  approved: boolean
+  ingredients: { ingredientName: string; quantity: number; unit: string }[]
+}
+
+export interface UserExport {
+  email: string
+  passwordHash: string
+  emailConfirmed: boolean
+  role: Role
+  firstName: string
+  lastName: string
+  birthDate?: string | null
+  shoeSize?: number | null
+  weight?: number | null
+  photoUrl: string
+  theme: string
+  colorPalette: string
+  nickname: string
+  iban: string
+  ibanVisibility: string
+  colorblindMode: boolean
+  language: string
+}
+
+// Nested event internals (tabs/meals/locations/...) are round-tripped as
+// opaque data by the frontend — only name/date are shown in the preview list.
+export interface EventExport {
+  name: string
+  startDate: string
+  endDate: string
+  initialParticipants: number
+  photoUrl: string
+  voteWeights: string
+  venueAddress: string
+  venueMapsUrl: string
+  venuePhone: string
+  venueInfo: string
+  participants: unknown[]
+  tabs: unknown[]
+  meals: unknown[]
+  locations: unknown[]
+  locationVotes: unknown[]
+  shopping: unknown[]
+}
+
+export interface TransferBundle {
+  version: number
+  exportedAt: string
+  recipes: RecipeExport[]
+  events: EventExport[]
+  users: UserExport[]
+}
+
+export interface PreviewItem {
+  key: string
+  label: string
+  exists: boolean
+}
+
+export interface ImportPreview {
+  recipes: PreviewItem[]
+  events: PreviewItem[]
+  users: PreviewItem[]
+}
+
+export interface ImportCommitResult {
+  importedUsers: number
+  importedRecipes: number
+  importedEvents: number
+  skipped: string[]
+}
