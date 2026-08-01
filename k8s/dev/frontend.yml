@@ -1,0 +1,93 @@
+# Same in-cluster clone+build mechanism as prod (see k8s/frontend.yml), pinned
+# to REPO_REF=dev via the campmenu-config ConfigMap in this namespace.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: campmenu-frontend
+  namespace: campmenu-dev
+  labels: { app: campmenu-frontend }
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: { app: campmenu-frontend }
+  template:
+    metadata:
+      labels: { app: campmenu-frontend }
+    spec:
+      volumes:
+        - name: src
+          emptyDir: {}
+        - name: html
+          emptyDir: {}
+        - name: nginx-conf
+          configMap:
+            name: campmenu-nginx
+      initContainers:
+        - name: clone
+          image: alpine:3.20
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              apk add --no-cache git
+              rm -rf /workspace/repo
+              if [ -n "$GIT_TOKEN" ]; then
+                AUTH=$(printf '%s:%s' "$GIT_USERNAME" "$GIT_TOKEN" | base64 | tr -d '\n')
+                git -c http.extraHeader="Authorization: Basic $AUTH" \
+                  clone --depth 1 --branch "$REPO_REF" "$REPO_URL" /workspace/repo
+              else
+                git clone --depth 1 --branch "$REPO_REF" "$REPO_URL" /workspace/repo
+              fi
+          envFrom:
+            - configMapRef: { name: campmenu-config }
+            - secretRef: { name: campmenu-secrets }
+          volumeMounts:
+            - { name: src, mountPath: /workspace }
+        - name: build
+          image: node:20-alpine
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              apk add --no-cache git
+              git config --global --add safe.directory '*'
+              cd "/workspace/repo${APP_SUBDIR:+/$APP_SUBDIR}/frontend"
+              npm install
+              npm run build
+              cp -r dist/. /html/
+              sed -i "s|__API_URL__|${API_URL}|g" /html/index.html
+          envFrom:
+            - configMapRef: { name: campmenu-config }
+          volumeMounts:
+            - { name: src, mountPath: /workspace }
+            - { name: html, mountPath: /html }
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - { name: html, mountPath: /usr/share/nginx/html }
+            - { name: nginx-conf, mountPath: /etc/nginx/conf.d/default.conf, subPath: default.conf }
+          readinessProbe:
+            httpGet: { path: /, port: 8080 }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: campmenu-frontend
+  namespace: campmenu-dev
+spec:
+  selector: { app: campmenu-frontend }
+  ports:
+    - port: 80
+      targetPort: 8080

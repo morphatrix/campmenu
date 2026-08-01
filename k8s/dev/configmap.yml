@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: campmenu-config
+  namespace: campmenu-dev
+data:
+  PORT: "8080"
+  LOG_LEVEL: "info"
+  DB_HOST: "campmenu-dev-db-rw"
+  DB_PORT: "5432"
+  APP_URL: "https://campmenu-dev.morphatrix.fr"
+  CORS_ORIGINS: "https://campmenu-dev.morphatrix.fr"
+  EMAIL_CONFIRM_REQUIRED: "false"
+  SITE_NAME: "CampMenu (dev)"
+  DEFAULT_THEME: "auto"
+  DEFAULT_PALETTE: "default"
+  API_URL: ""
+
+  # Tracks the dev branch — deploys here are for validation before merging to main.
+  REPO_URL: "https://github.com/morphatrix/campmenu.git"
+  REPO_REF: "dev"
+  APP_SUBDIR: ""
+  GIT_SSL_NO_VERIFY: "false"

@@ -1,5 +1,6 @@
 # Kubernetes secrets — never commit real credentials (use secret.example.yml).
 k8s/secret.yml
+k8s/dev/secret.yml
 
 # Local notes for Claude Code — never shared via git.
 CLAUDE.md
