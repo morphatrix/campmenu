@@ -20,14 +20,12 @@ function RecipeChip({ recipe }: { recipe: Recipe }) {
   const [photoPos, setPhotoPos] = useState<{ x: number; y: number } | null>(null)
   const btnRef = useRef<HTMLButtonElement>(null)
 
-  function togglePhoto(e: React.MouseEvent) {
-    e.stopPropagation()
-    if (photoPos) {
-      setPhotoPos(null)
-      return
-    }
+  function showPhoto() {
     const rect = btnRef.current?.getBoundingClientRect()
     if (rect) setPhotoPos({ x: rect.right + 8, y: rect.top })
+  }
+  function hidePhoto() {
+    setPhotoPos(null)
   }
 
   return (
@@ -44,7 +42,8 @@ function RecipeChip({ recipe }: { recipe: Recipe }) {
           ref={btnRef}
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={togglePhoto}
+          onMouseEnter={showPhoto}
+          onMouseLeave={hidePhoto}
           className="shrink-0 text-muted hover:text-brand"
         >
           <Eye size={12} />
@@ -54,8 +53,7 @@ function RecipeChip({ recipe }: { recipe: Recipe }) {
         <img
           src={resolveAsset(recipe.photoUrl)}
           alt=""
-          onClick={() => setPhotoPos(null)}
-          className="fixed z-50 h-24 w-24 cursor-pointer rounded-lg border border-border object-cover shadow-lg"
+          className="pointer-events-none fixed z-50 h-24 w-24 rounded-lg border border-border object-cover shadow-lg"
           style={{ left: photoPos.x, top: photoPos.y }}
         />,
         document.body,
