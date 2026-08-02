@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslation } from 'react-i18next'
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors,
@@ -16,7 +17,19 @@ function dayCount(start: string, end: string): number {
 
 function RecipeChip({ recipe }: { recipe: Recipe }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `recipe:${recipe.id}` })
-  const [showPhoto, setShowPhoto] = useState(false)
+  const [photoPos, setPhotoPos] = useState<{ x: number; y: number } | null>(null)
+  const btnRef = useRef<HTMLButtonElement>(null)
+
+  function togglePhoto(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (photoPos) {
+      setPhotoPos(null)
+      return
+    }
+    const rect = btnRef.current?.getBoundingClientRect()
+    if (rect) setPhotoPos({ x: rect.right + 8, y: rect.top })
+  }
+
   return (
     <div
       ref={setNodeRef}
@@ -28,20 +41,24 @@ function RecipeChip({ recipe }: { recipe: Recipe }) {
       <span className="min-w-0 flex-1 truncate" title={recipe.name}>{recipe.name}</span>
       {recipe.photoUrl && (
         <button
+          ref={btnRef}
           type="button"
           onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); setShowPhoto((v) => !v) }}
+          onClick={togglePhoto}
           className="shrink-0 text-muted hover:text-brand"
         >
           <Eye size={12} />
         </button>
       )}
-      {showPhoto && recipe.photoUrl && (
+      {photoPos && recipe.photoUrl && createPortal(
         <img
           src={resolveAsset(recipe.photoUrl)}
           alt=""
-          className="pointer-events-none absolute left-full top-1/2 z-30 ml-2 h-20 w-20 -translate-y-1/2 rounded-lg border border-border object-cover shadow-lg"
-        />
+          onClick={() => setPhotoPos(null)}
+          className="fixed z-50 h-24 w-24 cursor-pointer rounded-lg border border-border object-cover shadow-lg"
+          style={{ left: photoPos.x, top: photoPos.y }}
+        />,
+        document.body,
       )}
     </div>
   )
