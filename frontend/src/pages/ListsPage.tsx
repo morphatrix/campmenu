@@ -197,7 +197,7 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
         )}
         {voted ? (
           <div>
-            <label className="label">qté niv.1/2/3</label>
+            <label className="label">Suggestion (choix 1, 2, 3)</label>
             <div className="flex gap-1">
               <input className="input w-14" type="number" step="0.1" value={q1} onChange={(e) => setQ1(+e.target.value)} />
               <input className="input w-14" type="number" step="0.1" value={q2} onChange={(e) => setQ2(+e.target.value)} />
