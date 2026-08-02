@@ -111,9 +111,11 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
     onChange()
   }
   async function remove(itemId: string) { await api.del(`/product-list-items/${itemId}`); onChange() }
-  async function moveToSection(it: NonNullable<typeof list.items>[number], newSection: string) {
+  type Item = NonNullable<typeof list.items>[number]
+  async function updateItem(it: Item, patch: Partial<Pick<Item, 'section' | 'quantity' | 'qtyPerLevel'>>) {
     await api.patch(`/product-list-items/${it.id}`, {
-      name: it.name, unit: it.unit, section: newSection, quantity: it.quantity, qtyPerLevel: it.qtyPerLevel,
+      name: it.name, unit: it.unit, section: it.section, quantity: it.quantity, qtyPerLevel: it.qtyPerLevel,
+      ...patch,
     })
     onChange()
   }
@@ -173,15 +175,38 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
                           <select
                             className="input h-7 w-32 py-0 text-xs"
                             value={it.section || ''}
-                            onChange={(e) => moveToSection(it, e.target.value)}
+                            onChange={(e) => updateItem(it, { section: e.target.value })}
                           >
                             <option value="">—</option>
                             {sections.map((s) => <option key={s} value={s}>{s}</option>)}
                           </select>
                         )}
-                        <span className="text-xs text-muted">
-                          {voted ? `niv. ${Object.entries(it.qtyPerLevel ?? {}).map(([k, v]) => `${k}:${v}`).join(' ')}` : `${it.quantity} ${it.unit}`}
-                        </span>
+                        {voted ? (
+                          <span className="flex items-center gap-1 text-xs text-muted">
+                            niv.
+                            {['1', '2', '3'].map((lvl) => (
+                              <input
+                                key={lvl}
+                                className="input h-7 w-12 py-0 text-center text-xs"
+                                type="number"
+                                step="0.1"
+                                value={it.qtyPerLevel?.[lvl] ?? 0}
+                                onChange={(e) => updateItem(it, { qtyPerLevel: { ...it.qtyPerLevel, [lvl]: +e.target.value } })}
+                              />
+                            ))}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-xs text-muted">
+                            <input
+                              className="input h-7 w-16 py-0 text-center text-xs"
+                              type="number"
+                              step="0.1"
+                              value={it.quantity}
+                              onChange={(e) => updateItem(it, { quantity: +e.target.value })}
+                            />
+                            {it.unit}
+                          </span>
+                        )}
                         <button className="text-danger" onClick={() => remove(it.id)}><Trash2 size={14} /></button>
                       </span>
                     </li>
