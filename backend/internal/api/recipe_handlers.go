@@ -69,6 +69,7 @@ type recipeReq struct {
 	BasePersons  int                   `json:"basePersons"`
 	Coefficient  float64               `json:"coefficient"`
 	PhotoURL     string                `json:"photoUrl"`
+	SourceURL    string                `json:"sourceUrl"`
 	Instructions string                `json:"instructions"`
 	Kind         string                `json:"kind"`
 	Tags         []string              `json:"tags"`
@@ -161,7 +162,7 @@ func (s *Server) handleCreateRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 	recipe := models.Recipe{
 		Name: req.Name, BasePersons: req.BasePersons, Coefficient: req.Coefficient,
-		PhotoURL: req.PhotoURL, Instructions: req.Instructions,
+		PhotoURL: req.PhotoURL, SourceURL: req.SourceURL, Instructions: req.Instructions,
 		Kind: deriveKind(req.Tags, req.Kind), Tags: req.Tags,
 		CreatedBy: userIDFrom(r),
 		Approved:  isStaff(r), // staff-authored recipes are auto-approved
@@ -210,7 +211,7 @@ func (s *Server) handleUpdateRecipe(w http.ResponseWriter, r *http.Request) {
 	err = s.DB.Transaction(func(tx *gorm.DB) error {
 		updates := map[string]any{
 			"name": req.Name, "base_persons": req.BasePersons, "coefficient": req.Coefficient,
-			"photo_url": req.PhotoURL, "instructions": req.Instructions,
+			"photo_url": req.PhotoURL, "source_url": req.SourceURL, "instructions": req.Instructions,
 			"kind": deriveKind(req.Tags, req.Kind), "tags": models.JSONStrings(req.Tags),
 		}
 		if err := tx.Model(&models.Recipe{}).Where("id = ?", id).Updates(updates).Error; err != nil {

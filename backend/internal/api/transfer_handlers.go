@@ -29,6 +29,7 @@ type RecipeExport struct {
 	BasePersons  int                      `json:"basePersons"`
 	Coefficient  float64                  `json:"coefficient"`
 	PhotoURL     string                   `json:"photoUrl"`
+	SourceURL    string                   `json:"sourceUrl"`
 	Instructions string                   `json:"instructions"`
 	Kind         string                   `json:"kind"`
 	Tags         []string                 `json:"tags"`
@@ -241,7 +242,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 func exportRecipe(rc models.Recipe) RecipeExport {
 	out := RecipeExport{
 		Name: rc.Name, BasePersons: rc.BasePersons, Coefficient: rc.Coefficient,
-		PhotoURL: rc.PhotoURL, Instructions: rc.Instructions, Kind: rc.Kind,
+		PhotoURL: rc.PhotoURL, SourceURL: rc.SourceURL, Instructions: rc.Instructions, Kind: rc.Kind,
 		Tags: rc.Tags, Approved: rc.Approved,
 	}
 	for _, ri := range rc.Ingredients {
@@ -624,7 +625,7 @@ func upsertUser(tx *gorm.DB, u UserExport) error {
 func upsertRecipe(tx *gorm.DB, rc RecipeExport, adminID uuid.UUID) error {
 	recipe := models.Recipe{
 		Name: rc.Name, BasePersons: rc.BasePersons, Coefficient: rc.Coefficient, PhotoURL: rc.PhotoURL,
-		Instructions: rc.Instructions, Kind: rc.Kind, Tags: rc.Tags, Approved: rc.Approved, CreatedBy: adminID,
+		SourceURL: rc.SourceURL, Instructions: rc.Instructions, Kind: rc.Kind, Tags: rc.Tags, Approved: rc.Approved, CreatedBy: adminID,
 	}
 	var existing models.Recipe
 	if err := tx.Where("LOWER(name) = LOWER(?)", rc.Name).First(&existing).Error; err == nil {

@@ -176,6 +176,7 @@ export interface Recipe {
   basePersons: number
   coefficient: number
   photoUrl: string
+  sourceUrl: string
   instructions: string
   kind: string
   tags: string[]
@@ -276,6 +277,7 @@ export interface RecipeExport {
   basePersons: number
   coefficient: number
   photoUrl: string
+  sourceUrl: string
   instructions: string
   kind: string
   tags: string[]

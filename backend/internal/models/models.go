@@ -291,6 +291,7 @@ type Recipe struct {
 	BasePersons  int                `gorm:"default:1" json:"basePersons"`
 	Coefficient  float64            `gorm:"default:1" json:"coefficient"`
 	PhotoURL     string             `json:"photoUrl"`
+	SourceURL    string             `json:"sourceUrl"` // optional link to the original recipe page
 	Instructions string             `json:"instructions"`
 	Kind         string             `json:"kind"`                    // legacy single category (kept in sync with tags)
 	Tags         JSONStrings        `gorm:"type:jsonb" json:"tags"`  // apéro | entrée | plat | dessert | cocktail | …

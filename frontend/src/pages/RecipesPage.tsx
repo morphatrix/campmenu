@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, ChefHat, GripVertical, Loader2, Pencil, Plus, Sparkles, Trash2, Users, Wine, X } from 'lucide-react'
+import { Check, ChefHat, ExternalLink, GripVertical, Loader2, Pencil, Plus, Sparkles, Trash2, Users, Wine, X } from 'lucide-react'
 import { DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -140,6 +140,11 @@ function RecipeDetail({ recipe, onClose, onEdit, onChanged }: { recipe: Recipe; 
         <span className="chip"><Users size={12} /> {recipe.basePersons} {t('menu.persons')}</span>
         {(recipe.tags ?? []).map((tg) => <span key={tg} className="chip capitalize">{tg}</span>)}
         <span className={`chip ${recipe.approved ? 'text-success' : 'text-accent'}`}>{recipe.approved ? t('recipes.approved') : t('recipes.pending')}</span>
+        {recipe.sourceUrl && (
+          <a href={recipe.sourceUrl} target="_blank" rel="noreferrer" className="chip text-brand hover:underline">
+            <ExternalLink size={12} /> {t('recipes.sourceUrl')}
+          </a>
+        )}
       </div>
 
       <h3 className="mb-2 font-semibold">{t('recipes.ingredients')}</h3>
@@ -201,6 +206,7 @@ function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial
   const [name, setName] = useState(initial?.name ?? '')
   const [basePersons, setBasePersons] = useState(initial?.basePersons ?? (forceCocktail ? 1 : 6))
   const [photoUrl, setPhotoUrl] = useState(initial?.photoUrl ?? '')
+  const [sourceUrl, setSourceUrl] = useState(initial?.sourceUrl ?? '')
   const [tags, setTags] = useState<string[]>(initial?.tags ?? (forceCocktail ? ['cocktail'] : ['plat']))
   const [steps, setSteps] = useState<Step[]>(() => {
     const list = (initial?.instructions ?? '').split('\n').map((l) => l.trim()).filter(Boolean)
@@ -273,7 +279,7 @@ function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial
     e.preventDefault()
     const finalTags = forceCocktail && !tags.includes('cocktail') ? ['cocktail', ...tags] : tags
     const body = {
-      name, basePersons, coefficient: 1, photoUrl, tags: finalTags,
+      name, basePersons, coefficient: 1, photoUrl, sourceUrl, tags: finalTags,
       instructions: steps.map((s) => s.text.trim()).filter(Boolean).join('\n'),
       ingredients: ingredients.filter((i) => i.name.trim()),
     }
@@ -326,6 +332,11 @@ function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial
         <div>
           <label className="label">{t('profile.photo')}</label>
           <ImageUpload value={photoUrl} onChange={setPhotoUrl} />
+        </div>
+
+        <div>
+          <label className="label">{t('recipes.sourceUrl')}</label>
+          <input className="input" type="url" placeholder="https://…" value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} />
         </div>
 
         <div>
