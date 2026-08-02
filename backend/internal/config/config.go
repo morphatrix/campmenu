@@ -41,6 +41,11 @@ type Config struct {
 	DefaultPalette string
 
 	CORSOrigins []string
+
+	// MaxImportSizeMB is the seed default for the admin-adjustable import/export
+	// body-size limit (see internal/settings.KeyMaxImportSizeMB) — editable at
+	// runtime from Admin → Paramètres afterward, no redeploy needed.
+	MaxImportSizeMB int
 }
 
 func getenv(key, def string) string {
@@ -90,6 +95,7 @@ func Load() *Config {
 		DefaultTheme:         getenv("DEFAULT_THEME", "auto"),
 		DefaultPalette:       getenv("DEFAULT_PALETTE", "default"),
 		CORSOrigins:          splitAndTrim(getenv("CORS_ORIGINS", "http://localhost:5173")),
+		MaxImportSizeMB:      getenvInt("MAX_IMPORT_SIZE_MB", 40),
 	}
 	return c
 }

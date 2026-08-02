@@ -437,6 +437,21 @@ function SettingsSection() {
       </section>
 
       <section className="card p-6">
+        <h3 className="mb-1 font-semibold">{t('settings.transferTitle')}</h3>
+        <p className="mb-4 text-xs text-muted">{t('settings.transferHint')}</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label">{t('settings.maxImportSizeMB')}</label>
+            <input
+              className="input" type="number" min={1} max={95}
+              value={s['MAX_IMPORT_SIZE_MB'] ?? ''}
+              onChange={(e) => set('MAX_IMPORT_SIZE_MB', e.target.value)}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="card p-6">
         <h3 className="mb-4 font-semibold">{t('settings.smtp')}</h3>
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <button className="btn-ghost" onClick={sendTestEmail} disabled={testEmail.state === 'sending'}>

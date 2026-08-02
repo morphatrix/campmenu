@@ -268,6 +268,7 @@ export interface SiteConfig {
   defaultTheme: string
   defaultPalette: string
   aiEnabled?: boolean
+  maxImportSizeMB?: number
 }
 
 // ---- Export / Import (admin data transfer) ----

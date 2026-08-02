@@ -33,6 +33,9 @@ const (
 	KeyAIBaseURL            = "AI_BASE_URL"
 	KeyAIAPIKey             = "AI_API_KEY"
 	KeyAIModel              = "AI_MODEL"
+	// KeyMaxImportSizeMB caps the request body for the admin export/import
+	// endpoints (MB). Adjustable at runtime — no redeploy, no ConfigMap edit.
+	KeyMaxImportSizeMB = "MAX_IMPORT_SIZE_MB"
 )
 
 // EditableKeys are the settings the admin UI may change.
@@ -42,6 +45,7 @@ var EditableKeys = []string{
 	KeySMTPHost, KeySMTPPort, KeySMTPUser, KeySMTPPass, KeySMTPFrom,
 	KeyEmailConfirmRequired,
 	KeyAIProvider, KeyAIBaseURL, KeyAIAPIKey, KeyAIModel,
+	KeyMaxImportSizeMB,
 }
 
 // Store is a thread-safe, DB-backed settings cache. Sensitive values are

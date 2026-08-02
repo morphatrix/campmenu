@@ -7,6 +7,13 @@ versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- Admin export/import: file size shown on selection (import) and after generation (export), with a warning if it exceeds the configured limit.
+- Admin → Paramètres: import/export size limit (`MAX_IMPORT_SIZE_MB`) is now adjustable live, no redeploy needed.
+
+### Fixed
+- Nginx's default 1MB body-size limit silently rejected export/import uploads before they ever reached the backend; now set well above the backend's cap. Import failures are now surfaced as an on-page error instead of failing silently.
+
 ## [0.2.0] - 2026-08-01
 
 ### Added

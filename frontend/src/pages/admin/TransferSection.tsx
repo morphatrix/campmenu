@@ -4,10 +4,32 @@ import { Download, Upload } from 'lucide-react'
 import { api } from '../../lib/api'
 import { isCocktail } from '../../lib/types'
 import type {
-  Event, ImportCommitResult, ImportPreview, PreviewItem, Recipe, TransferBundle, User,
+  Event, ImportCommitResult, ImportPreview, PreviewItem, Recipe, SiteConfig, TransferBundle, User,
 } from '../../lib/types'
 
 type Mode = 'export' | 'import'
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`
+  const units = ['Ko', 'Mo', 'Go']
+  let n = bytes / 1024
+  let i = 0
+  while (n >= 1024 && i < units.length - 1) {
+    n /= 1024
+    i += 1
+  }
+  return `${n.toFixed(1)} ${units[i]}`
+}
+
+// Shared by export/import panels: the admin-adjustable limit (Admin → Paramètres,
+// MAX_IMPORT_SIZE_MB), fetched fresh so a live setting change is reflected without reload.
+function useMaxImportSizeMB(): number | null {
+  const [max, setMax] = useState<number | null>(null)
+  useEffect(() => {
+    api.get<SiteConfig>('/config').then((c) => setMax(c.maxImportSizeMB ?? null)).catch(() => setMax(null))
+  }, [])
+  return max
+}
 
 function toggle(set: Set<string>, id: string): Set<string> {
   const next = new Set(set)
@@ -55,6 +77,9 @@ function ExportPanel() {
   const [selEventIds, setSelEventIds] = useState<Set<string>>(new Set())
   const [selUserIds, setSelUserIds] = useState<Set<string>>(new Set())
   const [exporting, setExporting] = useState(false)
+  const [exportSize, setExportSize] = useState<number | null>(null)
+  const [error, setError] = useState('')
+  const maxMB = useMaxImportSizeMB()
 
   useEffect(() => {
     api.get<Recipe[]>('/recipes').then(setRecipes)
@@ -67,18 +92,23 @@ function ExportPanel() {
 
   async function doExport() {
     setExporting(true)
+    setError('')
+    setExportSize(null)
     try {
       const recipeIds = [...selRecipeIds, ...selCocktailIds]
       const bundle = await api.post<TransferBundle>('/export', {
         recipeIds, eventIds: [...selEventIds], userIds: [...selUserIds],
       })
       const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' })
+      setExportSize(blob.size)
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
       a.download = `campmenu-export-${new Date().toISOString().slice(0, 10)}.json`
       a.click()
       URL.revokeObjectURL(url)
+    } catch (err: any) {
+      setError(err?.message ?? t('admin.transferFailed'))
     } finally {
       setExporting(false)
     }
@@ -111,6 +141,17 @@ function ExportPanel() {
       <button className="btn-primary" onClick={doExport} disabled={exporting}>
         <Download size={15} /> {t('admin.transferDoExport')}
       </button>
+      {error && <p className="text-sm text-danger">{error}</p>}
+      {exportSize !== null && (
+        <p className="text-sm text-muted">
+          {t('admin.transferExportSize', { size: formatBytes(exportSize) })}
+          {maxMB != null && exportSize > maxMB * 1024 * 1024 && (
+            <span className="ml-2 text-danger">
+              {t('admin.transferFileTooLarge', { size: formatBytes(exportSize), max: `${maxMB} Mo` })}
+            </span>
+          )}
+        </p>
+      )}
     </div>
   )
 }
@@ -154,6 +195,8 @@ function ImportPanel() {
   const [previewing, setPreviewing] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<ImportCommitResult | null>(null)
+  const [fileSize, setFileSize] = useState<number | null>(null)
+  const maxMB = useMaxImportSizeMB()
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -162,6 +205,11 @@ function ImportPanel() {
     setError('')
     setResult(null)
     setPreview(null)
+    setFileSize(file.size)
+    if (maxMB != null && file.size > maxMB * 1024 * 1024) {
+      setError(t('admin.transferFileTooLarge', { size: formatBytes(file.size), max: `${maxMB} Mo` }))
+      return
+    }
     setPreviewing(true)
     try {
       const parsed = JSON.parse(await file.text()) as TransferBundle
@@ -203,6 +251,9 @@ function ImportPanel() {
         <input type="file" accept="application/json" className="hidden" onChange={handleFile} disabled={previewing} />
       </label>
 
+      {fileSize !== null && maxMB != null && !error && (
+        <p className="text-sm text-muted">{t('admin.transferFileSize', { size: formatBytes(fileSize), max: `${maxMB} Mo` })}</p>
+      )}
       {error && <p className="text-sm text-danger">{error}</p>}
 
       {preview && (

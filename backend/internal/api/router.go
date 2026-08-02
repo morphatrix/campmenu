@@ -44,11 +44,11 @@ func (s *Server) Router() http.Handler {
 	})
 
 	r.Route("/api", func(r chi.Router) {
-		// Cap request bodies. Raised from the original 10 MiB because admin
-		// export/import bundles embed recipe/user photos as base64, which
-		// inflates size ~33% — a handful of photographed recipes/cocktails
-		// exceeded 10 MiB and silently failed (no body-size error was surfaced).
-		r.Use(maxBody(40 << 20)) // ~40 MiB
+		// Hard ceiling for every route — a DoS backstop, not the tunable limit.
+		// The admin export/import routes apply their own (lower, admin-editable
+		// via Settings) cap below via maxImportBody; everything else stays well
+		// under this ceiling in normal use.
+		r.Use(maxBody(100 << 20))                   // ~100 MiB
 		r.Use(httprate.LimitByIP(600, time.Minute)) // generous global abuse limit
 		r.Use(s.originGuard)                        // CSRF: reject cross-origin unsafe requests
 		r.Use(s.notifyOnChange)                     // broadcast SSE tick after successful writes
@@ -207,9 +207,12 @@ func (s *Server) Router() http.Handler {
 				r.Get("/settings/db", s.handleGetDBConfig)
 				r.Patch("/settings/db", s.handleUpdateDBConfig)
 
-				r.Post("/export", s.handleExport)
-				r.Post("/import/preview", s.handleImportPreview)
-				r.Post("/import/commit", s.handleImportCommit)
+				r.Group(func(r chi.Router) {
+					r.Use(s.maxImportBody)
+					r.Post("/export", s.handleExport)
+					r.Post("/import/preview", s.handleImportPreview)
+					r.Post("/import/commit", s.handleImportCommit)
+				})
 
 				r.Get("/upgrade", s.handleUpgradeStatus)
 				r.Post("/upgrade/dry-run", s.handleDryRunUpgrade)
@@ -227,10 +230,11 @@ func (s *Server) Router() http.Handler {
 
 func (s *Server) handlePublicConfig(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
-		"siteName":       s.Settings.Get(settings.KeySiteName),
-		"logoUrl":        s.Settings.Get(settings.KeyLogoURL),
-		"defaultTheme":   s.Settings.Get(settings.KeyDefaultTheme),
-		"defaultPalette": s.Settings.Get(settings.KeyDefaultPalette),
-		"aiEnabled":      s.Settings.Get(settings.KeyAIProvider) != "" && s.Settings.Get(settings.KeyAIModel) != "",
+		"siteName":        s.Settings.Get(settings.KeySiteName),
+		"logoUrl":         s.Settings.Get(settings.KeyLogoURL),
+		"defaultTheme":    s.Settings.Get(settings.KeyDefaultTheme),
+		"defaultPalette":  s.Settings.Get(settings.KeyDefaultPalette),
+		"aiEnabled":       s.Settings.Get(settings.KeyAIProvider) != "" && s.Settings.Get(settings.KeyAIModel) != "",
+		"maxImportSizeMB": s.Settings.Int(settings.KeyMaxImportSizeMB, 40),
 	})
 }

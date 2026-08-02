@@ -10,12 +10,27 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/morphatrix/campmenu/internal/models"
+	"github.com/morphatrix/campmenu/internal/settings"
 	"gorm.io/gorm"
 )
 
 var internalImageURLRe = regexp.MustCompile(`^/api/images/([0-9a-fA-F-]{36})$`)
 
 const transferBundleVersion = 1
+
+// maxImportBody caps /export, /import/preview and /import/commit at the
+// admin-editable MAX_IMPORT_SIZE_MB setting (Admin → Paramètres) rather than
+// a fixed value — bundles embed base64 photos and grow with the library, so
+// this is read fresh on every request instead of being fixed at boot.
+func (s *Server) maxImportBody(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mb := s.Settings.Int(settings.KeyMaxImportSizeMB, 40)
+		if mb <= 0 {
+			mb = 40
+		}
+		maxBody(int64(mb) << 20)(next).ServeHTTP(w, r)
+	})
+}
 
 // TransferBundle is the full export/import payload. All cross-references use
 // natural keys (recipe name, user email) instead of raw UUIDs so the file is

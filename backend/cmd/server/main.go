@@ -79,6 +79,7 @@ func main() {
 		settings.KeySMTPPass:             cfg.SMTPPass,
 		settings.KeySMTPFrom:             cfg.SMTPFrom,
 		settings.KeyEmailConfirmRequired: strconv.FormatBool(cfg.EmailConfirmRequired),
+		settings.KeyMaxImportSizeMB:      strconv.Itoa(cfg.MaxImportSizeMB),
 	}, cipher)
 	if err != nil {
 		slog.Error("settings init failed", "error", err)
