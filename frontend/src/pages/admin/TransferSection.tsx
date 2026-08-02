@@ -151,30 +151,46 @@ function ImportPanel() {
   const [selEventKeys, setSelEventKeys] = useState<Set<string>>(new Set())
   const [selUserKeys, setSelUserKeys] = useState<Set<string>>(new Set())
   const [committing, setCommitting] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
+  const [error, setError] = useState('')
   const [result, setResult] = useState<ImportCommitResult | null>(null)
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
+    e.target.value = ''
     if (!file) return
-    const parsed = JSON.parse(await file.text()) as TransferBundle
-    setBundle(parsed)
+    setError('')
     setResult(null)
-    const p = await api.post<ImportPreview>('/import/preview', parsed)
-    setPreview({ recipes: p.recipes ?? [], events: p.events ?? [], users: p.users ?? [] })
-    setSelRecipeKeys(new Set((p.recipes ?? []).filter((i) => !i.exists).map((i) => i.key)))
-    setSelEventKeys(new Set((p.events ?? []).filter((i) => !i.exists).map((i) => i.key)))
-    setSelUserKeys(new Set((p.users ?? []).filter((i) => !i.exists).map((i) => i.key)))
+    setPreview(null)
+    setPreviewing(true)
+    try {
+      const parsed = JSON.parse(await file.text()) as TransferBundle
+      setBundle(parsed)
+      const p = await api.post<ImportPreview>('/import/preview', parsed)
+      setPreview({ recipes: p.recipes ?? [], events: p.events ?? [], users: p.users ?? [] })
+      setSelRecipeKeys(new Set((p.recipes ?? []).filter((i) => !i.exists).map((i) => i.key)))
+      setSelEventKeys(new Set((p.events ?? []).filter((i) => !i.exists).map((i) => i.key)))
+      setSelUserKeys(new Set((p.users ?? []).filter((i) => !i.exists).map((i) => i.key)))
+    } catch (err: any) {
+      setBundle(null)
+      setError(err?.message ?? t('admin.transferFailed'))
+    } finally {
+      setPreviewing(false)
+    }
   }
 
   async function doCommit() {
     if (!bundle) return
     setCommitting(true)
+    setError('')
     try {
       const res = await api.post<ImportCommitResult>('/import/commit', {
         bundle,
         selections: { recipes: [...selRecipeKeys], events: [...selEventKeys], users: [...selUserKeys] },
       })
       setResult(res)
+    } catch (err: any) {
+      setError(err?.message ?? t('admin.transferFailed'))
     } finally {
       setCommitting(false)
     }
@@ -183,9 +199,11 @@ function ImportPanel() {
   return (
     <div className="space-y-4">
       <label className="btn-ghost inline-flex w-fit cursor-pointer items-center gap-2">
-        <Upload size={15} /> {t('admin.transferChooseFile')}
-        <input type="file" accept="application/json" className="hidden" onChange={handleFile} />
+        <Upload size={15} /> {previewing ? t('admin.transferAnalyzing') : t('admin.transferChooseFile')}
+        <input type="file" accept="application/json" className="hidden" onChange={handleFile} disabled={previewing} />
       </label>
+
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       {preview && (
         <div className="grid gap-4 sm:grid-cols-2">

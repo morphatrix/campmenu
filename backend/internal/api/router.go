@@ -44,7 +44,11 @@ func (s *Server) Router() http.Handler {
 	})
 
 	r.Route("/api", func(r chi.Router) {
-		r.Use(maxBody(10 << 20))                    // cap request bodies (~10 MiB)
+		// Cap request bodies. Raised from the original 10 MiB because admin
+		// export/import bundles embed recipe/user photos as base64, which
+		// inflates size ~33% — a handful of photographed recipes/cocktails
+		// exceeded 10 MiB and silently failed (no body-size error was surfaced).
+		r.Use(maxBody(40 << 20)) // ~40 MiB
 		r.Use(httprate.LimitByIP(600, time.Minute)) // generous global abuse limit
 		r.Use(s.originGuard)                        // CSRF: reject cross-origin unsafe requests
 		r.Use(s.notifyOnChange)                     // broadcast SSE tick after successful writes
