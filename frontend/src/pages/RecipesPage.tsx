@@ -20,6 +20,7 @@ const newStep = (text = ''): Step => ({ id: `s${Date.now()}_${stepSeq++}`, text 
 interface ImportDraft { name: string; basePersons: number; photoUrl?: string; ingredients: DraftIngredient[]; steps: string[] }
 
 const PREDEFINED_TAGS = ['apéro', 'entrée', 'plat', 'accompagnement', 'dessert', 'petit-déjeuner', 'boisson']
+const COCKTAIL_BASES = ['rhum', 'vodka', 'gin', 'tequila', 'whisky', 'absinthe', 'vin', 'liqueur', 'sans alcool']
 
 // SortableStep is one draggable instruction row (drag handle + numbered input).
 function SortableStep({
@@ -58,14 +59,14 @@ export default function RecipesPage({ cocktails = false }: { cocktails?: boolean
   const visible = recipes.filter((r) => (cocktails ? isCocktail(r) : !isCocktail(r)))
   const tags = useMemo(() => [...new Set(visible.flatMap((r) => r.tags ?? []))].filter((tg) => tg !== 'cocktail').sort(), [visible])
   const displayed = visible.filter((r) => tagFilter === '' || (r.tags ?? []).includes(tagFilter))
-  const showAside = !cocktails && tags.length > 0
+  const showAside = tags.length > 0
 
   return (
     <div className={`grid gap-4 ${showAside ? 'md:grid-cols-[200px_1fr]' : ''}`}>
-      {/* Tag filter (recipes only) */}
+      {/* Tag/base filter */}
       {showAside && (
         <aside className="card h-fit p-3">
-          <p className="mb-2 text-xs font-semibold uppercase text-muted">{t('recipes.tags')}</p>
+          <p className="mb-2 text-xs font-semibold uppercase text-muted">{cocktails ? t('recipes.base') : t('recipes.tags')}</p>
           <ul className="space-y-1 text-sm">
             <li><button className={`w-full rounded-lg px-2 py-1 text-left ${tagFilter === '' ? 'bg-brand text-brand-fg' : 'hover:bg-surface'}`} onClick={() => setTagFilter('')}>{t('recipes.allTags')}</button></li>
             {tags.map((tg) => (
@@ -179,11 +180,11 @@ function RecipeDetail({ recipe, onClose, onEdit, onChanged }: { recipe: Recipe; 
   )
 }
 
-function TagSelector({ tags, onChange }: { tags: string[]; onChange: (t: string[]) => void }) {
+function TagSelector({ tags, onChange, options = PREDEFINED_TAGS }: { tags: string[]; onChange: (t: string[]) => void; options?: string[] }) {
   const { t } = useTranslation()
   const [custom, setCustom] = useState('')
   function toggle(tag: string) { onChange(tags.includes(tag) ? tags.filter((x) => x !== tag) : [...tags, tag]) }
-  const all = [...PREDEFINED_TAGS, ...tags.filter((x) => x !== 'cocktail' && !PREDEFINED_TAGS.includes(x))]
+  const all = [...options, ...tags.filter((x) => x !== 'cocktail' && !options.includes(x))]
   return (
     <div>
       <div className="flex flex-wrap gap-2">
@@ -322,12 +323,10 @@ function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial
           </div>
         </div>
 
-        {!forceCocktail && (
-          <div>
-            <label className="label">{t('recipes.tags')}</label>
-            <TagSelector tags={tags} onChange={setTags} />
-          </div>
-        )}
+        <div>
+          <label className="label">{forceCocktail ? t('recipes.base') : t('recipes.tags')}</label>
+          <TagSelector tags={tags} onChange={setTags} options={forceCocktail ? COCKTAIL_BASES : PREDEFINED_TAGS} />
+        </div>
 
         <div>
           <label className="label">{t('profile.photo')}</label>

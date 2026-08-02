@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next'
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors,
 } from '@dnd-kit/core'
-import { Trash2, GripVertical } from 'lucide-react'
-import { api } from '../../lib/api'
+import { Trash2, GripVertical, Eye } from 'lucide-react'
+import { api, resolveAsset } from '../../lib/api'
 import { useLive } from '../../context/LiveContext'
 import type { Event, Meal, MealType, Recipe } from '../../lib/types'
 
@@ -16,15 +16,33 @@ function dayCount(start: string, end: string): number {
 
 function RecipeChip({ recipe }: { recipe: Recipe }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: `recipe:${recipe.id}` })
+  const [showPhoto, setShowPhoto] = useState(false)
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`flex cursor-grab touch-none items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 text-xs ${isDragging ? 'opacity-30' : ''}`}
+      className={`relative flex cursor-grab touch-none items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 text-xs ${isDragging ? 'opacity-30' : ''}`}
     >
       <GripVertical size={12} className="shrink-0 text-muted" />
-      <span className="min-w-0 truncate" title={recipe.name}>{recipe.name}</span>
+      <span className="min-w-0 flex-1 truncate" title={recipe.name}>{recipe.name}</span>
+      {recipe.photoUrl && (
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); setShowPhoto((v) => !v) }}
+          className="shrink-0 text-muted hover:text-brand"
+        >
+          <Eye size={12} />
+        </button>
+      )}
+      {showPhoto && recipe.photoUrl && (
+        <img
+          src={resolveAsset(recipe.photoUrl)}
+          alt=""
+          className="pointer-events-none absolute left-full top-1/2 z-30 ml-2 h-20 w-20 -translate-y-1/2 rounded-lg border border-border object-cover shadow-lg"
+        />
+      )}
     </div>
   )
 }
