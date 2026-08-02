@@ -111,6 +111,12 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
     onChange()
   }
   async function remove(itemId: string) { await api.del(`/product-list-items/${itemId}`); onChange() }
+  async function moveToSection(it: NonNullable<typeof list.items>[number], newSection: string) {
+    await api.patch(`/product-list-items/${it.id}`, {
+      name: it.name, unit: it.unit, section: newSection, quantity: it.quantity, qtyPerLevel: it.qtyPerLevel,
+    })
+    onChange()
+  }
   async function toggleVoted() { await api.patch(`/product-lists/${list.id}`, { voted: !voted }); onChange() }
   async function addSection() {
     if (!newSection.trim()) return
@@ -163,6 +169,16 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
                     <li key={it.id} className="flex items-center justify-between py-1.5 text-sm">
                       <span className="font-medium">{it.name} <span className="text-muted">{it.unit}</span></span>
                       <span className="flex items-center gap-3">
+                        {sections.length > 0 && (
+                          <select
+                            className="input h-7 w-32 py-0 text-xs"
+                            value={it.section || ''}
+                            onChange={(e) => moveToSection(it, e.target.value)}
+                          >
+                            <option value="">—</option>
+                            {sections.map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        )}
                         <span className="text-xs text-muted">
                           {voted ? `niv. ${Object.entries(it.qtyPerLevel ?? {}).map(([k, v]) => `${k}:${v}`).join(' ')}` : `${it.quantity} ${it.unit}`}
                         </span>
