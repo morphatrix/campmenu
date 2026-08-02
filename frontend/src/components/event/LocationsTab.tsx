@@ -95,7 +95,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
               <div key={loc.id} className={`card overflow-hidden ${loc.isWinner ? 'ring-2 ring-success' : ''}`}>
                 {loc.images.length > 0 && (
                   <button type="button" onClick={() => setGallery(loc)} className="relative block w-full">
-                    <img src={resolveAsset(loc.images[0])} alt="" className="h-40 w-full object-cover" />
+                    <img src={resolveAsset(loc.images[0])} alt="" className="aspect-[4/3] w-full object-cover" />
                     <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-card/75 px-2.5 py-1 text-xs font-medium backdrop-blur">
                       <Images size={13} /> {loc.images.length}
                     </span>

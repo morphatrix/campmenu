@@ -44,7 +44,7 @@ export default function EventsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {events.map((ev) => (
-            <Link key={ev.id} to={`/events/${ev.id}`} className="card relative block h-44 overflow-hidden p-0 transition hover:border-brand">
+            <Link key={ev.id} to={`/events/${ev.id}`} className="card relative block aspect-[4/3] overflow-hidden p-0 transition hover:border-brand">
               {ev.photoUrl ? (
                 <img src={resolveAsset(ev.photoUrl)} alt={ev.name} className="absolute inset-0 h-full w-full object-cover" />
               ) : (
