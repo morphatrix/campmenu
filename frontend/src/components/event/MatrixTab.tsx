@@ -216,7 +216,7 @@ function AddVotedArticle({ tab, event, existing, onAdded }: { tab: EventTab; eve
         <div><label className="label">{t('matrix.newArticle')}</label><IngredientInput className="input w-44" value={name} onChange={setName} onPickUnit={setUnit} onKeyDown={(e) => e.key === 'Enter' && addManual()} /></div>
         <div><label className="label">unité</label><input className="input w-24" value={unit} onChange={(e) => setUnit(e.target.value)} /></div>
         <div>
-          <label className="label">qté niv.1/2/3</label>
+          <label className="label">Suggestion (choix 1, 2, 3)</label>
           <div className="flex gap-1">
             <input className="input w-16" type="number" step="0.1" value={q1} onChange={(e) => setQ1(+e.target.value)} />
             <input className="input w-16" type="number" step="0.1" value={q2} onChange={(e) => setQ2(+e.target.value)} />

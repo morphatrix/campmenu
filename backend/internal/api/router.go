@@ -210,6 +210,10 @@ func (s *Server) Router() http.Handler {
 				r.Get("/upgrade", s.handleUpgradeStatus)
 				r.Post("/upgrade/dry-run", s.handleDryRunUpgrade)
 				r.Post("/upgrade/apply", s.handleApplyUpgrade)
+
+				r.Get("/api-tokens", s.handleListAPITokens)
+				r.Post("/api-tokens", s.handleCreateAPIToken)
+				r.Delete("/api-tokens/{id}", s.handleRevokeAPIToken)
 			})
 		})
 	})

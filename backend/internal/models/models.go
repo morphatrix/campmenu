@@ -68,6 +68,18 @@ type User struct {
 	IBANHidden bool `gorm:"-" json:"ibanHidden"`
 }
 
+// ApiToken is a long-lived credential a user (typically an admin) generates
+// to call the API without a browser session — e.g. for scripted/automation
+// access. Only the SHA-256 hash is stored; the plaintext token is shown once
+// at creation time and never again.
+type ApiToken struct {
+	Base
+	UserID     uuid.UUID  `gorm:"type:uuid;index" json:"userId"`
+	Label      string     `gorm:"not null" json:"label"`
+	TokenHash  string     `gorm:"uniqueIndex;not null" json:"-"`
+	LastUsedAt *time.Time `json:"lastUsedAt"`
+}
+
 // IBANGrant authorizes ViewerID to see OwnerID's IBAN (populated by an explicit
 // "selected" list or by an accepted access request).
 type IBANGrant struct {
@@ -395,6 +407,7 @@ func AllModels() []any {
 		&AisleCache{},
 		&Image{},
 		&User{},
+		&ApiToken{},
 		&IBANGrant{},
 		&IBANRequest{},
 		&Invite{},

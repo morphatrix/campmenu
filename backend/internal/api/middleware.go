@@ -3,7 +3,9 @@ package api
 import (
 	"context"
 	"net/http"
+	"strings"
 
+	"github.com/google/uuid"
 	"github.com/morphatrix/campmenu/internal/auth"
 	"github.com/morphatrix/campmenu/internal/models"
 )
@@ -22,6 +24,21 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 		}
 		if token == "" {
 			writeError(w, http.StatusUnauthorized, "authentification requise")
+			return
+		}
+		// A long-lived API token (Admin → Tokens API) never goes through the
+		// cookie, only the Authorization header, and isn't a JWT — resolve it
+		// against the ApiToken table instead of trying to parse it as one.
+		if strings.HasPrefix(token, apiTokenPrefix) {
+			userID, role, ok := s.lookupAPIToken(token)
+			if !ok {
+				writeError(w, http.StatusUnauthorized, "token invalide")
+				return
+			}
+			ctx := context.WithValue(r.Context(), ctxUserID, userID)
+			ctx = context.WithValue(ctx, ctxRole, role)
+			ctx = context.WithValue(ctx, ctxImp, uuid.Nil)
+			next.ServeHTTP(w, r.WithContext(ctx))
 			return
 		}
 		claims, err := auth.ParseJWT(s.Cfg.JWTSecret, token)

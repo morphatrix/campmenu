@@ -370,3 +370,18 @@ export interface UpgradeResult {
   ok: boolean
   error?: string
 }
+
+// ---- Admin: API tokens ----
+
+export interface ApiToken {
+  id: string
+  label: string
+  createdAt: string
+  lastUsedAt?: string | null
+}
+
+export interface NewApiToken {
+  id: string
+  label: string
+  token: string
+}

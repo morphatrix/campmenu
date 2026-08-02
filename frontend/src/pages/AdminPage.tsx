@@ -12,8 +12,9 @@ import { PALETTES } from '../lib/appearance'
 import type { Invite, Role, User } from '../lib/types'
 import TransferSection from './admin/TransferSection'
 import UpgradeSection from './admin/UpgradeSection'
+import TokensSection from './admin/TokensSection'
 
-type Section = 'invites' | 'users' | 'settings' | 'transfer' | 'upgrade'
+type Section = 'invites' | 'users' | 'settings' | 'transfer' | 'upgrade' | 'tokens'
 
 export default function AdminPage() {
   const { t } = useTranslation()
@@ -29,6 +30,7 @@ export default function AdminPage() {
     ...(admin ? [{ id: 'settings' as Section, label: t('admin.settings') }] : []),
     ...(admin ? [{ id: 'transfer' as Section, label: t('admin.transfer') }] : []),
     ...(admin ? [{ id: 'upgrade' as Section, label: t('admin.upgrade') }] : []),
+    ...(admin ? [{ id: 'tokens' as Section, label: t('admin.tokens') }] : []),
   ]
 
   return (
@@ -53,6 +55,7 @@ export default function AdminPage() {
       {admin && section === 'settings' && <SettingsSection />}
       {admin && section === 'transfer' && <TransferSection />}
       {admin && section === 'upgrade' && <UpgradeSection />}
+      {admin && section === 'tokens' && <TokensSection />}
     </div>
   )
 }
