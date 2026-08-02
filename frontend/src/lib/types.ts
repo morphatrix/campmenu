@@ -331,12 +331,20 @@ export interface EventExport {
   shopping: unknown[]
 }
 
+export interface ProductListExport {
+  name: string
+  voted: boolean
+  sections: string[]
+  items: unknown[]
+}
+
 export interface TransferBundle {
   version: number
   exportedAt: string
   recipes: RecipeExport[]
   events: EventExport[]
   users: UserExport[]
+  productLists: ProductListExport[]
 }
 
 export interface PreviewItem {
@@ -349,12 +357,14 @@ export interface ImportPreview {
   recipes: PreviewItem[]
   events: PreviewItem[]
   users: PreviewItem[]
+  productLists: PreviewItem[]
 }
 
 export interface ImportCommitResult {
   importedUsers: number
   importedRecipes: number
   importedEvents: number
+  importedProductLists: number
   skipped: string[]
 }
 

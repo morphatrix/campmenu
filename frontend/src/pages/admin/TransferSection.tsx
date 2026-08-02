@@ -4,7 +4,7 @@ import { Download, Upload } from 'lucide-react'
 import { api } from '../../lib/api'
 import { isCocktail } from '../../lib/types'
 import type {
-  Event, ImportCommitResult, ImportPreview, PreviewItem, Recipe, SiteConfig, TransferBundle, User,
+  Event, ImportCommitResult, ImportPreview, PreviewItem, ProductList, Recipe, SiteConfig, TransferBundle, User,
 } from '../../lib/types'
 
 type Mode = 'export' | 'import'
@@ -72,10 +72,12 @@ function ExportPanel() {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [users, setUsers] = useState<User[]>([])
+  const [productLists, setProductLists] = useState<ProductList[]>([])
   const [selRecipeIds, setSelRecipeIds] = useState<Set<string>>(new Set())
   const [selCocktailIds, setSelCocktailIds] = useState<Set<string>>(new Set())
   const [selEventIds, setSelEventIds] = useState<Set<string>>(new Set())
   const [selUserIds, setSelUserIds] = useState<Set<string>>(new Set())
+  const [selProductListIds, setSelProductListIds] = useState<Set<string>>(new Set())
   const [exporting, setExporting] = useState(false)
   const [exportSize, setExportSize] = useState<number | null>(null)
   const [error, setError] = useState('')
@@ -85,6 +87,7 @@ function ExportPanel() {
     api.get<Recipe[]>('/recipes').then(setRecipes)
     api.get<Event[]>('/events').then(setEvents)
     api.get<User[]>('/users').then(setUsers)
+    api.get<ProductList[]>('/product-lists').then(setProductLists)
   }, [])
 
   const plainRecipes = recipes.filter((r) => !isCocktail(r))
@@ -97,7 +100,7 @@ function ExportPanel() {
     try {
       const recipeIds = [...selRecipeIds, ...selCocktailIds]
       const bundle = await api.post<TransferBundle>('/export', {
-        recipeIds, eventIds: [...selEventIds], userIds: [...selUserIds],
+        recipeIds, eventIds: [...selEventIds], userIds: [...selUserIds], productListIds: [...selProductListIds],
       })
       const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' })
       setExportSize(blob.size)
@@ -136,6 +139,11 @@ function ExportPanel() {
           label={t('admin.transferUsers')} items={users.map((u) => ({ id: u.id, label: `${u.firstName} ${u.lastName} <${u.email}>` }))}
           selected={selUserIds} onToggle={(id) => setSelUserIds((s) => toggle(s, id))}
           onSelectAll={(all) => setSelUserIds(all ? new Set(users.map((u) => u.id)) : new Set())}
+        />
+        <CheckList
+          label={t('admin.transferLists')} items={productLists.map((l) => ({ id: l.id, label: l.name }))}
+          selected={selProductListIds} onToggle={(id) => setSelProductListIds((s) => toggle(s, id))}
+          onSelectAll={(all) => setSelProductListIds(all ? new Set(productLists.map((l) => l.id)) : new Set())}
         />
       </div>
       <button className="btn-primary" onClick={doExport} disabled={exporting}>
@@ -191,6 +199,7 @@ function ImportPanel() {
   const [selRecipeKeys, setSelRecipeKeys] = useState<Set<string>>(new Set())
   const [selEventKeys, setSelEventKeys] = useState<Set<string>>(new Set())
   const [selUserKeys, setSelUserKeys] = useState<Set<string>>(new Set())
+  const [selProductListKeys, setSelProductListKeys] = useState<Set<string>>(new Set())
   const [committing, setCommitting] = useState(false)
   const [previewing, setPreviewing] = useState(false)
   const [error, setError] = useState('')
@@ -215,10 +224,11 @@ function ImportPanel() {
       const parsed = JSON.parse(await file.text()) as TransferBundle
       setBundle(parsed)
       const p = await api.post<ImportPreview>('/import/preview', parsed)
-      setPreview({ recipes: p.recipes ?? [], events: p.events ?? [], users: p.users ?? [] })
+      setPreview({ recipes: p.recipes ?? [], events: p.events ?? [], users: p.users ?? [], productLists: p.productLists ?? [] })
       setSelRecipeKeys(new Set((p.recipes ?? []).filter((i) => !i.exists).map((i) => i.key)))
       setSelEventKeys(new Set((p.events ?? []).filter((i) => !i.exists).map((i) => i.key)))
       setSelUserKeys(new Set((p.users ?? []).filter((i) => !i.exists).map((i) => i.key)))
+      setSelProductListKeys(new Set((p.productLists ?? []).filter((i) => !i.exists).map((i) => i.key)))
     } catch (err: any) {
       setBundle(null)
       setError(err?.message ?? t('admin.transferFailed'))
@@ -234,7 +244,10 @@ function ImportPanel() {
     try {
       const res = await api.post<ImportCommitResult>('/import/commit', {
         bundle,
-        selections: { recipes: [...selRecipeKeys], events: [...selEventKeys], users: [...selUserKeys] },
+        selections: {
+          recipes: [...selRecipeKeys], events: [...selEventKeys], users: [...selUserKeys],
+          productLists: [...selProductListKeys],
+        },
       })
       setResult(res)
     } catch (err: any) {
@@ -278,6 +291,11 @@ function ImportPanel() {
             selected={selUserKeys} onToggle={(k) => setSelUserKeys((s) => toggle(s, k))}
             onSelectAllConflicts={() => setSelUserKeys((s) => new Set([...s, ...preview.users.filter((i) => i.exists).map((i) => i.key)]))}
           />
+          <PreviewList
+            label={t('admin.transferLists')} items={preview.productLists}
+            selected={selProductListKeys} onToggle={(k) => setSelProductListKeys((s) => toggle(s, k))}
+            onSelectAllConflicts={() => setSelProductListKeys((s) => new Set([...s, ...preview.productLists.filter((i) => i.exists).map((i) => i.key)]))}
+          />
         </div>
       )}
 
@@ -290,7 +308,10 @@ function ImportPanel() {
       {result && (
         <div className="card p-4 text-sm">
           <p className="text-success">
-            {t('admin.transferResult', { users: result.importedUsers, recipes: result.importedRecipes, events: result.importedEvents })}
+            {t('admin.transferResult', {
+              users: result.importedUsers, recipes: result.importedRecipes, events: result.importedEvents,
+              lists: result.importedProductLists,
+            })}
           </p>
           {result.skipped.length > 0 && (
             <div className="mt-2">

@@ -28,7 +28,7 @@ func (s *Server) maxImportBody(next http.Handler) http.Handler {
 		if mb <= 0 {
 			mb = 40
 		}
-		maxBody(int64(mb) << 20)(next).ServeHTTP(w, r)
+		maxBody(int64(mb)<<20)(next).ServeHTTP(w, r)
 	})
 }
 
@@ -36,11 +36,31 @@ func (s *Server) maxImportBody(next http.Handler) http.Handler {
 // natural keys (recipe name, user email) instead of raw UUIDs so the file is
 // portable between databases (e.g. campmenu-dev <-> prod).
 type TransferBundle struct {
-	Version    int            `json:"version"`
-	ExportedAt time.Time      `json:"exportedAt"`
-	Recipes    []RecipeExport `json:"recipes"`
-	Events     []EventExport  `json:"events"`
-	Users      []UserExport   `json:"users"`
+	Version      int                 `json:"version"`
+	ExportedAt   time.Time           `json:"exportedAt"`
+	Recipes      []RecipeExport      `json:"recipes"`
+	Events       []EventExport       `json:"events"`
+	Users        []UserExport        `json:"users"`
+	ProductLists []ProductListExport `json:"productLists"`
+}
+
+// ProductListExport is a reusable catalog list (Listes page — EventID IS NULL).
+// Event-private working copies aren't exported: their content is always fully
+// materialized inside the owning event's tabs, so nothing would be lost.
+type ProductListExport struct {
+	Name     string                  `json:"name"`
+	Voted    bool                    `json:"voted"`
+	Sections []string                `json:"sections"`
+	Items    []ProductListItemExport `json:"items"`
+}
+
+type ProductListItemExport struct {
+	Name        string             `json:"name"`
+	Unit        string             `json:"unit"`
+	Section     string             `json:"section"`
+	QtyPerLevel map[string]float64 `json:"qtyPerLevel"`
+	Quantity    float64            `json:"quantity"`
+	Position    int                `json:"position"`
 }
 
 type RecipeExport struct {
@@ -214,9 +234,10 @@ type ShoppingEntryExport struct {
 // ---- export ----
 
 type exportReq struct {
-	RecipeIDs []string `json:"recipeIds"`
-	EventIDs  []string `json:"eventIds"`
-	UserIDs   []string `json:"userIds"`
+	RecipeIDs      []string `json:"recipeIds"`
+	EventIDs       []string `json:"eventIds"`
+	UserIDs        []string `json:"userIds"`
+	ProductListIDs []string `json:"productListIds"`
 }
 
 func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
@@ -250,6 +271,15 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if len(req.ProductListIDs) > 0 {
+		var lists []models.ProductList
+		s.DB.Preload("Items", func(db *gorm.DB) *gorm.DB { return db.Order("position asc") }).
+			Where("id IN (?)", req.ProductListIDs).Find(&lists)
+		for _, l := range lists {
+			bundle.ProductLists = append(bundle.ProductLists, exportProductList(l))
+		}
+	}
+
 	// Never serialize nil slices as JSON null — the frontend always expects
 	// arrays it can .filter()/.map() directly, even when a category is empty.
 	if bundle.Recipes == nil {
@@ -260,6 +290,9 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 	}
 	if bundle.Users == nil {
 		bundle.Users = []UserExport{}
+	}
+	if bundle.ProductLists == nil {
+		bundle.ProductLists = []ProductListExport{}
 	}
 
 	writeJSON(w, http.StatusOK, bundle)
@@ -311,6 +344,20 @@ func (s *Server) exportUser(u models.User) UserExport {
 		Theme: u.Theme, ColorPalette: u.ColorPalette, Nickname: u.Nickname, IBAN: u.IBAN,
 		IBANVisibility: u.IBANVisibility, ColorblindMode: u.ColorblindMode, Language: u.Language,
 	}
+}
+
+func exportProductList(l models.ProductList) ProductListExport {
+	out := ProductListExport{Name: l.Name, Voted: l.Voted, Sections: l.Sections}
+	for _, it := range l.Items {
+		out.Items = append(out.Items, ProductListItemExport{
+			Name: it.Name, Unit: it.Unit, Section: it.Section,
+			QtyPerLevel: it.QtyPerLevel, Quantity: it.Quantity, Position: it.Position,
+		})
+	}
+	if out.Items == nil {
+		out.Items = []ProductListItemExport{}
+	}
+	return out
 }
 
 // emailByID is a tiny best-effort resolver used across the export; empty
@@ -500,9 +547,10 @@ type previewItem struct {
 }
 
 type previewResp struct {
-	Recipes []previewItem `json:"recipes"`
-	Events  []previewItem `json:"events"`
-	Users   []previewItem `json:"users"`
+	Recipes      []previewItem `json:"recipes"`
+	Events       []previewItem `json:"events"`
+	Users        []previewItem `json:"users"`
+	ProductLists []previewItem `json:"productLists"`
 }
 
 func eventNaturalKey(name string, start time.Time) string {
@@ -515,11 +563,16 @@ func (s *Server) handleImportPreview(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "fichier invalide")
 		return
 	}
-	resp := previewResp{Recipes: []previewItem{}, Events: []previewItem{}, Users: []previewItem{}}
+	resp := previewResp{Recipes: []previewItem{}, Events: []previewItem{}, Users: []previewItem{}, ProductLists: []previewItem{}}
 	for _, rc := range bundle.Recipes {
 		var count int64
 		s.DB.Model(&models.Recipe{}).Where("LOWER(name) = LOWER(?)", rc.Name).Count(&count)
 		resp.Recipes = append(resp.Recipes, previewItem{Key: rc.Name, Label: rc.Name, Exists: count > 0})
+	}
+	for _, l := range bundle.ProductLists {
+		var count int64
+		s.DB.Model(&models.ProductList{}).Where("LOWER(name) = LOWER(?) AND event_id IS NULL", l.Name).Count(&count)
+		resp.ProductLists = append(resp.ProductLists, previewItem{Key: l.Name, Label: l.Name, Exists: count > 0})
 	}
 	for _, u := range bundle.Users {
 		var count int64
@@ -543,17 +596,19 @@ func (s *Server) handleImportPreview(w http.ResponseWriter, r *http.Request) {
 type commitReq struct {
 	Bundle     TransferBundle `json:"bundle"`
 	Selections struct {
-		Recipes []string `json:"recipes"`
-		Events  []string `json:"events"`
-		Users   []string `json:"users"`
+		Recipes      []string `json:"recipes"`
+		Events       []string `json:"events"`
+		Users        []string `json:"users"`
+		ProductLists []string `json:"productLists"`
 	} `json:"selections"`
 }
 
 type commitResp struct {
-	ImportedUsers   int      `json:"importedUsers"`
-	ImportedRecipes int      `json:"importedRecipes"`
-	ImportedEvents  int      `json:"importedEvents"`
-	Skipped         []string `json:"skipped"`
+	ImportedUsers        int      `json:"importedUsers"`
+	ImportedRecipes      int      `json:"importedRecipes"`
+	ImportedEvents       int      `json:"importedEvents"`
+	ImportedProductLists int      `json:"importedProductLists"`
+	Skipped              []string `json:"skipped"`
 }
 
 func toSet(items []string) map[string]bool {
@@ -574,6 +629,7 @@ func (s *Server) handleImportCommit(w http.ResponseWriter, r *http.Request) {
 	selRecipes := toSet(req.Selections.Recipes)
 	selEvents := toSet(req.Selections.Events)
 	selUsers := toSet(req.Selections.Users)
+	selProductLists := toSet(req.Selections.ProductLists)
 
 	resp := commitResp{Skipped: []string{}}
 	err := s.DB.Transaction(func(tx *gorm.DB) error {
@@ -605,6 +661,15 @@ func (s *Server) handleImportCommit(w http.ResponseWriter, r *http.Request) {
 			}
 			resp.Skipped = append(resp.Skipped, skipped...)
 			resp.ImportedEvents++
+		}
+		for _, l := range req.Bundle.ProductLists {
+			if !selProductLists[strings.ToLower(l.Name)] {
+				continue
+			}
+			if err := upsertProductList(tx, l); err != nil {
+				return err
+			}
+			resp.ImportedProductLists++
 		}
 		return nil
 	})
@@ -720,6 +785,36 @@ func upsertRecipe(tx *gorm.DB, rc RecipeExport, adminID uuid.UUID) error {
 			continue
 		}
 		if err := tx.Create(&models.RecipeIngredient{RecipeID: recipe.ID, IngredientID: ing.ID, Quantity: ri.Quantity, Unit: ri.Unit}).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// upsertProductList upserts a global catalog list (EventID stays NULL) by
+// name, replacing its items wholesale on conflict.
+func upsertProductList(tx *gorm.DB, l ProductListExport) error {
+	list := models.ProductList{Name: l.Name, Voted: l.Voted, Sections: l.Sections}
+	var existing models.ProductList
+	if err := tx.Where("LOWER(name) = LOWER(?) AND event_id IS NULL", l.Name).First(&existing).Error; err == nil {
+		list.Base = existing.Base
+		if err := tx.Where("list_id = ?", existing.ID).Delete(&models.ProductListItem{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&existing).Select("*").Updates(list).Error; err != nil {
+			return err
+		}
+	} else {
+		if err := tx.Create(&list).Error; err != nil {
+			return err
+		}
+	}
+	for _, it := range l.Items {
+		item := models.ProductListItem{
+			ListID: list.ID, Name: it.Name, Unit: it.Unit, Section: it.Section,
+			QtyPerLevel: it.QtyPerLevel, Quantity: it.Quantity, Position: it.Position,
+		}
+		if err := tx.Create(&item).Error; err != nil {
 			return err
 		}
 	}
