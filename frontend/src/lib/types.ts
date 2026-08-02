@@ -277,6 +277,8 @@ export interface RecipeExport {
   basePersons: number
   coefficient: number
   photoUrl: string
+  photoData?: string
+  photoContentType?: string
   sourceUrl: string
   instructions: string
   kind: string
@@ -296,6 +298,8 @@ export interface UserExport {
   shoeSize?: number | null
   weight?: number | null
   photoUrl: string
+  photoData?: string
+  photoContentType?: string
   theme: string
   colorPalette: string
   nickname: string

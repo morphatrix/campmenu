@@ -1,8 +1,10 @@
 package api
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -10,6 +12,8 @@ import (
 	"github.com/morphatrix/campmenu/internal/models"
 	"gorm.io/gorm"
 )
+
+var internalImageURLRe = regexp.MustCompile(`^/api/images/([0-9a-fA-F-]{36})$`)
 
 const transferBundleVersion = 1
 
@@ -25,16 +29,21 @@ type TransferBundle struct {
 }
 
 type RecipeExport struct {
-	Name         string                   `json:"name"`
-	BasePersons  int                      `json:"basePersons"`
-	Coefficient  float64                  `json:"coefficient"`
-	PhotoURL     string                   `json:"photoUrl"`
-	SourceURL    string                   `json:"sourceUrl"`
-	Instructions string                   `json:"instructions"`
-	Kind         string                   `json:"kind"`
-	Tags         []string                 `json:"tags"`
-	Approved     bool                     `json:"approved"`
-	Ingredients  []RecipeIngredientExport `json:"ingredients"`
+	Name        string  `json:"name"`
+	BasePersons int     `json:"basePersons"`
+	Coefficient float64 `json:"coefficient"`
+	PhotoURL    string  `json:"photoUrl"`
+	// PhotoData/PhotoContentType embed the actual image bytes (base64) when
+	// PhotoURL is an internal /api/images/{id} reference — otherwise that
+	// reference wouldn't resolve to anything in the target database.
+	PhotoData        string                   `json:"photoData,omitempty"`
+	PhotoContentType string                   `json:"photoContentType,omitempty"`
+	SourceURL        string                   `json:"sourceUrl"`
+	Instructions     string                   `json:"instructions"`
+	Kind             string                   `json:"kind"`
+	Tags             []string                 `json:"tags"`
+	Approved         bool                     `json:"approved"`
+	Ingredients      []RecipeIngredientExport `json:"ingredients"`
 }
 
 type RecipeIngredientExport struct {
@@ -44,23 +53,25 @@ type RecipeIngredientExport struct {
 }
 
 type UserExport struct {
-	Email          string     `json:"email"`
-	PasswordHash   string     `json:"passwordHash"`
-	EmailConfirmed bool       `json:"emailConfirmed"`
-	Role           string     `json:"role"`
-	FirstName      string     `json:"firstName"`
-	LastName       string     `json:"lastName"`
-	BirthDate      *time.Time `json:"birthDate"`
-	ShoeSize       *float64   `json:"shoeSize"`
-	Weight         *float64   `json:"weight"`
-	PhotoURL       string     `json:"photoUrl"`
-	Theme          string     `json:"theme"`
-	ColorPalette   string     `json:"colorPalette"`
-	Nickname       string     `json:"nickname"`
-	IBAN           string     `json:"iban"`
-	IBANVisibility string     `json:"ibanVisibility"`
-	ColorblindMode bool       `json:"colorblindMode"`
-	Language       string     `json:"language"`
+	Email            string     `json:"email"`
+	PasswordHash     string     `json:"passwordHash"`
+	EmailConfirmed   bool       `json:"emailConfirmed"`
+	Role             string     `json:"role"`
+	FirstName        string     `json:"firstName"`
+	LastName         string     `json:"lastName"`
+	BirthDate        *time.Time `json:"birthDate"`
+	ShoeSize         *float64   `json:"shoeSize"`
+	Weight           *float64   `json:"weight"`
+	PhotoURL         string     `json:"photoUrl"`
+	PhotoData        string     `json:"photoData,omitempty"`
+	PhotoContentType string     `json:"photoContentType,omitempty"`
+	Theme            string     `json:"theme"`
+	ColorPalette     string     `json:"colorPalette"`
+	Nickname         string     `json:"nickname"`
+	IBAN             string     `json:"iban"`
+	IBANVisibility   string     `json:"ibanVisibility"`
+	ColorblindMode   bool       `json:"colorblindMode"`
+	Language         string     `json:"language"`
 }
 
 type EventExport struct {
@@ -205,7 +216,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		var recipes []models.Recipe
 		s.DB.Preload("Ingredients.Ingredient").Where("id IN (?)", req.RecipeIDs).Find(&recipes)
 		for _, rc := range recipes {
-			bundle.Recipes = append(bundle.Recipes, exportRecipe(rc))
+			bundle.Recipes = append(bundle.Recipes, s.exportRecipe(rc))
 		}
 	}
 
@@ -213,7 +224,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		var users []models.User
 		s.DB.Where("id IN (?)", req.UserIDs).Find(&users)
 		for _, u := range users {
-			bundle.Users = append(bundle.Users, exportUser(u))
+			bundle.Users = append(bundle.Users, s.exportUser(u))
 		}
 	}
 
@@ -239,10 +250,28 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, bundle)
 }
 
-func exportRecipe(rc models.Recipe) RecipeExport {
+// embedPhoto resolves an internal /api/images/{id} reference to its stored
+// bytes so it can be carried inside the export bundle — that reference would
+// otherwise be meaningless in a different target database. External URLs
+// (or an empty photoURL) pass through with no embedded data.
+func (s *Server) embedPhoto(photoURL string) (data, contentType string) {
+	m := internalImageURLRe.FindStringSubmatch(photoURL)
+	if m == nil {
+		return "", ""
+	}
+	var img models.Image
+	if err := s.DB.First(&img, "id = ?", m[1]).Error; err != nil {
+		return "", ""
+	}
+	return base64.StdEncoding.EncodeToString(img.Data), img.ContentType
+}
+
+func (s *Server) exportRecipe(rc models.Recipe) RecipeExport {
+	data, contentType := s.embedPhoto(rc.PhotoURL)
 	out := RecipeExport{
 		Name: rc.Name, BasePersons: rc.BasePersons, Coefficient: rc.Coefficient,
-		PhotoURL: rc.PhotoURL, SourceURL: rc.SourceURL, Instructions: rc.Instructions, Kind: rc.Kind,
+		PhotoURL: rc.PhotoURL, PhotoData: data, PhotoContentType: contentType,
+		SourceURL: rc.SourceURL, Instructions: rc.Instructions, Kind: rc.Kind,
 		Tags: rc.Tags, Approved: rc.Approved,
 	}
 	for _, ri := range rc.Ingredients {
@@ -257,11 +286,13 @@ func exportRecipe(rc models.Recipe) RecipeExport {
 	return out
 }
 
-func exportUser(u models.User) UserExport {
+func (s *Server) exportUser(u models.User) UserExport {
+	data, contentType := s.embedPhoto(u.PhotoURL)
 	return UserExport{
 		Email: u.Email, PasswordHash: u.PasswordHash, EmailConfirmed: u.EmailConfirmed,
 		Role: string(u.Role), FirstName: u.FirstName, LastName: u.LastName,
-		BirthDate: u.BirthDate, ShoeSize: u.ShoeSize, Weight: u.Weight, PhotoURL: u.PhotoURL,
+		BirthDate: u.BirthDate, ShoeSize: u.ShoeSize, Weight: u.Weight,
+		PhotoURL: u.PhotoURL, PhotoData: data, PhotoContentType: contentType,
 		Theme: u.Theme, ColorPalette: u.ColorPalette, Nickname: u.Nickname, IBAN: u.IBAN,
 		IBANVisibility: u.IBANVisibility, ColorblindMode: u.ColorblindMode, Language: u.Language,
 	}
@@ -606,11 +637,34 @@ func findRecipeByName(tx *gorm.DB, name string) (models.Recipe, bool) {
 	return rc, true
 }
 
+// createImageFromBase64 recreates an Image row from embedded export data,
+// returning a fresh /api/images/{id} reference valid in this database. No-op
+// (ok=false) when there's no embedded data, e.g. the source had an external
+// photo URL or none at all.
+func createImageFromBase64(tx *gorm.DB, data, contentType string) (string, bool) {
+	if data == "" {
+		return "", false
+	}
+	raw, err := base64.StdEncoding.DecodeString(data)
+	if err != nil {
+		return "", false
+	}
+	img := models.Image{ContentType: contentType, Data: raw}
+	if err := tx.Create(&img).Error; err != nil {
+		return "", false
+	}
+	return "/api/images/" + img.ID.String(), true
+}
+
 func upsertUser(tx *gorm.DB, u UserExport) error {
+	photoURL := u.PhotoURL
+	if url, ok := createImageFromBase64(tx, u.PhotoData, u.PhotoContentType); ok {
+		photoURL = url
+	}
 	rec := models.User{
 		Email: u.Email, PasswordHash: u.PasswordHash, EmailConfirmed: u.EmailConfirmed,
 		Role: models.Role(u.Role), FirstName: u.FirstName, LastName: u.LastName, BirthDate: u.BirthDate,
-		ShoeSize: u.ShoeSize, Weight: u.Weight, PhotoURL: u.PhotoURL, Theme: u.Theme, ColorPalette: u.ColorPalette,
+		ShoeSize: u.ShoeSize, Weight: u.Weight, PhotoURL: photoURL, Theme: u.Theme, ColorPalette: u.ColorPalette,
 		Nickname: u.Nickname, IBAN: u.IBAN, IBANVisibility: u.IBANVisibility, ColorblindMode: u.ColorblindMode,
 		Language: u.Language,
 	}
@@ -623,8 +677,12 @@ func upsertUser(tx *gorm.DB, u UserExport) error {
 }
 
 func upsertRecipe(tx *gorm.DB, rc RecipeExport, adminID uuid.UUID) error {
+	photoURL := rc.PhotoURL
+	if url, ok := createImageFromBase64(tx, rc.PhotoData, rc.PhotoContentType); ok {
+		photoURL = url
+	}
 	recipe := models.Recipe{
-		Name: rc.Name, BasePersons: rc.BasePersons, Coefficient: rc.Coefficient, PhotoURL: rc.PhotoURL,
+		Name: rc.Name, BasePersons: rc.BasePersons, Coefficient: rc.Coefficient, PhotoURL: photoURL,
 		SourceURL: rc.SourceURL, Instructions: rc.Instructions, Kind: rc.Kind, Tags: rc.Tags, Approved: rc.Approved, CreatedBy: adminID,
 	}
 	var existing models.Recipe
