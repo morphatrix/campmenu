@@ -1,12 +1,14 @@
-import { ChangeEvent, useState } from 'react'
+import { ChangeEvent, ClipboardEvent, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Upload } from 'lucide-react'
 import { resolveAsset, uploadImage } from '../lib/api'
 import ImageCropper from './ImageCropper'
 
-// ImageUpload lets the user paste an external URL or upload a file (stored by the
-// backend, which returns a /api/images/{id} URL). With `circle`, picking a file
-// opens a circular crop/zoom step — handy for avatars and, since it re-encodes a
-// small square JPEG, it also avoids "Failed to fetch" on huge phone photos.
+// ImageUpload lets the user paste an external URL, upload a file, or paste an
+// image straight from the clipboard (Ctrl+V after clicking the drop zone).
+// Any picked/pasted image goes through a crop/zoom step first — circular for
+// avatars (`circle`), rectangular otherwise — which also re-encodes a small
+// JPEG so even huge phone photos upload comfortably.
 export default function ImageUpload({
   value,
   onChange,
@@ -16,6 +18,7 @@ export default function ImageUpload({
   onChange: (url: string) => void
   circle?: boolean
 }) {
+  const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [cropFile, setCropFile] = useState<File | null>(null)
@@ -37,8 +40,15 @@ export default function ImageUpload({
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
-    if (circle) setCropFile(file)
-    else doUpload(file)
+    setCropFile(file)
+  }
+
+  function onPaste(e: ClipboardEvent<HTMLDivElement>) {
+    const item = Array.from(e.clipboardData?.items ?? []).find((it) => it.type.startsWith('image/'))
+    if (!item) return
+    e.preventDefault()
+    const file = item.getAsFile()
+    if (file) setCropFile(file)
   }
 
   return (
@@ -50,9 +60,14 @@ export default function ImageUpload({
           className={circle ? 'mb-2 h-24 w-24 rounded-full object-cover' : 'mb-2 max-h-40 w-full rounded-lg object-cover'}
         />
       )}
-      <div className="flex gap-2">
+      <div
+        className="flex gap-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand"
+        tabIndex={0}
+        onPaste={onPaste}
+        title={t('profile.pasteHint')}
+      >
         <input className="input" placeholder="https://…" value={value} onChange={(e) => onChange(e.target.value)} />
-        <label className="btn-ghost cursor-pointer whitespace-nowrap" title="Importer une image">
+        <label className="btn-ghost cursor-pointer whitespace-nowrap" title={t('profile.pasteHint')}>
           <Upload size={15} /> {busy ? '…' : 'Upload'}
           <input type="file" accept="image/*" className="hidden" onChange={onFile} disabled={busy} />
         </label>
@@ -61,6 +76,7 @@ export default function ImageUpload({
       {cropFile && (
         <ImageCropper
           file={cropFile}
+          shape={circle ? 'circle' : 'rect'}
           onCancel={() => setCropFile(null)}
           onCropped={(blob) => {
             setCropFile(null)

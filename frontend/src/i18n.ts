@@ -106,6 +106,7 @@ const fr = {
       photo: 'Photo (URL)', theme: 'Thème', palette: 'Palette', colorblind: 'Mode daltonien',
       language: 'Langue', save: 'Enregistrer', saved: 'Enregistré',
       cropTitle: 'Recadrer la photo', cropZoom: 'Zoom',
+      pasteHint: 'Cliquer ici puis coller une image (Ctrl+V)',
     },
     iban: {
       title: 'Visibilité de l\'IBAN', subtitle: 'Choisissez qui peut voir votre IBAN.',
@@ -284,6 +285,7 @@ const en = {
       photo: 'Photo (URL)', theme: 'Theme', palette: 'Palette', colorblind: 'Colorblind mode',
       language: 'Language', save: 'Save', saved: 'Saved',
       cropTitle: 'Crop photo', cropZoom: 'Zoom',
+      pasteHint: 'Click here then paste an image (Ctrl+V)',
     },
     iban: {
       title: 'IBAN visibility', subtitle: 'Choose who can see your IBAN.',

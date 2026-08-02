@@ -2,23 +2,34 @@ import { PointerEvent as ReactPointerEvent, useEffect, useRef, useState } from '
 import { useTranslation } from 'react-i18next'
 import Modal from './Modal'
 
-const VIEW = 288 // on-screen circular viewport (px)
-const OUTPUT = 512 // exported square image size (px)
+const CIRCLE_SIZE = 288 // on-screen circular viewport (px), square
+const RECT_WIDTH = 320 // on-screen rectangular viewport width (px)
+const RECT_ASPECT = 4 / 3 // width / height
+const OUTPUT = 512 // exported circular image size (px), square
+const OUTPUT_WIDTH = 960 // exported rectangular image width (px)
 
 type Offset = { x: number; y: number }
 
-// ImageCropper lets the user zoom/pan an image inside a circular viewport, then
-// exports a small square JPEG (so even huge phone photos upload comfortably).
+// ImageCropper lets the user zoom/pan an image inside a viewport (circular for
+// avatars, rectangular for recipe/event/location photos), then exports a JPEG
+// sized for the target — this also avoids "Failed to fetch" on huge phone photos.
 export default function ImageCropper({
   file,
+  shape = 'circle',
   onCancel,
   onCropped,
 }: {
   file: File
+  shape?: 'circle' | 'rect'
   onCancel: () => void
   onCropped: (blob: Blob) => void
 }) {
   const { t } = useTranslation()
+  const viewW = shape === 'circle' ? CIRCLE_SIZE : RECT_WIDTH
+  const viewH = shape === 'circle' ? CIRCLE_SIZE : Math.round(RECT_WIDTH / RECT_ASPECT)
+  const outW = shape === 'circle' ? OUTPUT : OUTPUT_WIDTH
+  const outH = shape === 'circle' ? OUTPUT : Math.round(OUTPUT_WIDTH / RECT_ASPECT)
+
   const [img, setImg] = useState<HTMLImageElement | null>(null)
   const [scale, setScale] = useState(1)
   const [minScale, setMinScale] = useState(1)
@@ -32,15 +43,16 @@ export default function ImageCropper({
     reader.onload = () => {
       const im = new Image()
       im.onload = () => {
-        const cover = Math.max(VIEW / im.naturalWidth, VIEW / im.naturalHeight)
+        const cover = Math.max(viewW / im.naturalWidth, viewH / im.naturalHeight)
         setImg(im)
         setScale(cover)
         setMinScale(cover)
-        setOffset({ x: (VIEW - im.naturalWidth * cover) / 2, y: (VIEW - im.naturalHeight * cover) / 2 })
+        setOffset({ x: (viewW - im.naturalWidth * cover) / 2, y: (viewH - im.naturalHeight * cover) / 2 })
       }
       im.src = reader.result as string
     }
     reader.readAsDataURL(file)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [file])
 
   function clamp(o: Offset, s: number): Offset {
@@ -48,8 +60,8 @@ export default function ImageCropper({
     const w = img.naturalWidth * s
     const h = img.naturalHeight * s
     return {
-      x: Math.min(0, Math.max(VIEW - w, o.x)),
-      y: Math.min(0, Math.max(VIEW - h, o.y)),
+      x: Math.min(0, Math.max(viewW - w, o.x)),
+      y: Math.min(0, Math.max(viewH - h, o.y)),
     }
   }
 
@@ -69,20 +81,21 @@ export default function ImageCropper({
 
   function onZoom(s: number) {
     // Keep the viewport centre fixed while zooming.
-    const c = VIEW / 2
+    const cx = viewW / 2
+    const cy = viewH / 2
     const k = s / scale
-    setOffset(clamp({ x: c - (c - offset.x) * k, y: c - (c - offset.y) * k }, s))
+    setOffset(clamp({ x: cx - (cx - offset.x) * k, y: cy - (cy - offset.y) * k }, s))
     setScale(s)
   }
 
   function confirm() {
     if (!img) return
     const canvas = document.createElement('canvas')
-    canvas.width = OUTPUT
-    canvas.height = OUTPUT
+    canvas.width = outW
+    canvas.height = outH
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    const ratio = OUTPUT / VIEW
+    const ratio = outW / viewW
     ctx.drawImage(
       img,
       offset.x * ratio,
@@ -97,8 +110,8 @@ export default function ImageCropper({
     <Modal title={t('profile.cropTitle')} onClose={onCancel}>
       <div className="flex flex-col items-center gap-4">
         <div
-          className="relative touch-none select-none overflow-hidden rounded-full bg-surface"
-          style={{ width: VIEW, height: VIEW }}
+          className={`relative touch-none select-none overflow-hidden bg-surface ${shape === 'circle' ? 'rounded-full' : 'rounded-lg'}`}
+          style={{ width: viewW, height: viewH }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -119,7 +132,7 @@ export default function ImageCropper({
               }}
             />
           )}
-          <div className="pointer-events-none absolute inset-0 rounded-full ring-2 ring-white/70" />
+          <div className={`pointer-events-none absolute inset-0 ring-2 ring-white/70 ${shape === 'circle' ? 'rounded-full' : 'rounded-lg'}`} />
         </div>
         <input
           type="range"
