@@ -155,11 +155,19 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
         <button className="btn-ghost" onClick={addSection}><Plus size={14} /></button>
       </div>
 
-      {/* Items grouped by section */}
+      {/* Items grouped by section — grid columns so name/unit/section/qty/delete
+          line up vertically regardless of how long each name is. */}
       {items.length === 0 ? (
         <p className="mb-5 text-sm text-muted">{t('lists.noProducts')}</p>
       ) : (
         <div className="mb-5 space-y-4">
+          <div className="grid grid-cols-[1fr_60px_150px_170px_24px] gap-2 px-1 text-xs font-semibold uppercase text-muted">
+            <span>{t('lists.product')}</span>
+            <span>unité</span>
+            <span>{sections.length > 0 ? 'section' : ''}</span>
+            <span>{voted ? 'niv. 1 / 2 / 3' : t('lists.total')}</span>
+            <span />
+          </div>
           {groups.map((sec) => {
             const its = items.filter((i) => (i.section || '') === sec)
             if (its.length === 0) return null
@@ -168,12 +176,13 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
                 {sec && <p className="mb-1 text-xs font-semibold uppercase text-muted">{sec}</p>}
                 <ul className="divide-y divide-border">
                   {its.map((it) => (
-                    <li key={it.id} className="flex items-center justify-between py-1.5 text-sm">
-                      <span className="font-medium">{it.name} <span className="text-muted">{it.unit}</span></span>
-                      <span className="flex items-center gap-3">
+                    <li key={it.id} className="grid grid-cols-[1fr_60px_150px_170px_24px] items-center gap-2 py-1.5 text-sm">
+                      <span className="truncate font-medium">{it.name}</span>
+                      <span className="text-xs text-muted">{it.unit}</span>
+                      <span>
                         {sections.length > 0 && (
                           <select
-                            className="input h-7 w-32 py-0 text-xs"
+                            className="input h-7 w-full py-0 text-xs"
                             value={it.section || ''}
                             onChange={(e) => updateItem(it, { section: e.target.value })}
                           >
@@ -181,34 +190,33 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
                             {sections.map((s) => <option key={s} value={s}>{s}</option>)}
                           </select>
                         )}
-                        {voted ? (
-                          <span className="flex items-center gap-1 text-xs text-muted">
-                            niv.
-                            {['1', '2', '3'].map((lvl) => (
-                              <input
-                                key={lvl}
-                                className="input h-7 w-12 py-0 text-center text-xs"
-                                type="number"
-                                step="0.1"
-                                value={it.qtyPerLevel?.[lvl] ?? 0}
-                                onChange={(e) => updateItem(it, { qtyPerLevel: { ...it.qtyPerLevel, [lvl]: +e.target.value } })}
-                              />
-                            ))}
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-xs text-muted">
+                      </span>
+                      {voted ? (
+                        <span className="flex items-center gap-1 text-xs text-muted">
+                          {['1', '2', '3'].map((lvl) => (
                             <input
-                              className="input h-7 w-16 py-0 text-center text-xs"
+                              key={lvl}
+                              className="input h-7 w-12 py-0 text-center text-xs"
                               type="number"
                               step="0.1"
-                              value={it.quantity}
-                              onChange={(e) => updateItem(it, { quantity: +e.target.value })}
+                              value={it.qtyPerLevel?.[lvl] ?? 0}
+                              onChange={(e) => updateItem(it, { qtyPerLevel: { ...it.qtyPerLevel, [lvl]: +e.target.value } })}
                             />
-                            {it.unit}
-                          </span>
-                        )}
-                        <button className="text-danger" onClick={() => remove(it.id)}><Trash2 size={14} /></button>
-                      </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-xs text-muted">
+                          <input
+                            className="input h-7 w-16 py-0 text-center text-xs"
+                            type="number"
+                            step="0.1"
+                            value={it.quantity}
+                            onChange={(e) => updateItem(it, { quantity: +e.target.value })}
+                          />
+                          {it.unit}
+                        </span>
+                      )}
+                      <button className="justify-self-end text-danger" onClick={() => remove(it.id)}><Trash2 size={14} /></button>
                     </li>
                   ))}
                 </ul>
