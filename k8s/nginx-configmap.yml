@@ -14,6 +14,11 @@ data:
       root /usr/share/nginx/html;
       index index.html;
 
+      # Admin export/import bundles embed recipe/user photos as base64 and can
+      # run several MB — nginx's 1M default silently 413'd these before they
+      # ever reached the Go backend's own (higher) body-size cap.
+      client_max_body_size 45M;
+
       gzip on;
       gzip_types text/css application/javascript application/json image/svg+xml;
       gzip_min_length 1024;
