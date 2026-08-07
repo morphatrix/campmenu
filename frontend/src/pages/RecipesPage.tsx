@@ -112,7 +112,7 @@ export default function RecipesPage({ cocktails = false }: { cocktails?: boolean
             onChanged={() => { setSelected(null); load() }} />
         )}
         {showForm && (
-          <RecipeFormModal initial={editing} forceCocktail={cocktails}
+          <RecipeFormModal initial={editing} forceCocktail={cocktails} knownTags={tags}
             onClose={() => setShowForm(false)} onSaved={() => { setShowForm(false); load() }} />
         )}
       </div>
@@ -201,7 +201,7 @@ function TagSelector({ tags, onChange, options = PREDEFINED_TAGS }: { tags: stri
   )
 }
 
-function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial: Recipe | null; forceCocktail: boolean; onClose: () => void; onSaved: () => void }) {
+function RecipeFormModal({ initial, forceCocktail, knownTags, onClose, onSaved }: { initial: Recipe | null; forceCocktail: boolean; knownTags: string[]; onClose: () => void; onSaved: () => void }) {
   const { t } = useTranslation()
   const [name, setName] = useState(initial?.name ?? '')
   const [basePersons, setBasePersons] = useState(initial?.basePersons ?? (forceCocktail ? 1 : 6))
@@ -324,7 +324,10 @@ function RecipeFormModal({ initial, forceCocktail, onClose, onSaved }: { initial
 
         <div>
           <label className="label">{forceCocktail ? t('recipes.base') : t('recipes.tags')}</label>
-          <TagSelector tags={tags} onChange={setTags} options={forceCocktail ? COCKTAIL_BASES : PREDEFINED_TAGS} />
+          <TagSelector
+            tags={tags} onChange={setTags}
+            options={[...new Set([...(forceCocktail ? COCKTAIL_BASES : PREDEFINED_TAGS), ...knownTags])]}
+          />
         </div>
 
         <div>
