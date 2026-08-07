@@ -19,7 +19,7 @@ let stepSeq = 0
 const newStep = (text = ''): Step => ({ id: `s${Date.now()}_${stepSeq++}`, text })
 interface ImportDraft { name: string; basePersons: number; photoUrl?: string; ingredients: DraftIngredient[]; steps: string[] }
 
-const PREDEFINED_TAGS = ['apéro', 'entrée', 'plat', 'accompagnement', 'dessert', 'petit-déjeuner', 'boisson']
+const PREDEFINED_TAGS = ['apéro', 'entrée', 'plat', 'accompagnement', 'assaisonnement', 'dessert', 'petit-déjeuner', 'boisson']
 const COCKTAIL_BASES = ['rhum', 'vodka', 'gin', 'tequila', 'whisky', 'absinthe', 'vin', 'liqueur', 'sans alcool']
 
 // SortableStep is one draggable instruction row (drag handle + numbered input).
