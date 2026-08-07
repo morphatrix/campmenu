@@ -99,7 +99,7 @@ const fr = {
       submitForApproval: 'Soumettre pour approbation',
       step: 'Étape', addStep: 'Ajouter une étape', oneStepPerLine: 'une étape par ligne',
       importTitle: 'Importer depuis une URL (IA)', import: 'Importer', importing: 'Analyse en cours…', importFailed: 'Import impossible',
-      tags: 'Catégories', allTags: 'Toutes catégories', addTag: 'Ajouter…', createCocktail: 'Nouveau cocktail', base: 'Base',
+      tags: 'Catégories', allTags: 'Toutes catégories', allBases: 'Toutes les bases', addTag: 'Ajouter…', createCocktail: 'Nouveau cocktail', base: 'Base',
     },
     profile: {
       title: 'Mon profil', nickname: 'Surnom', iban: 'IBAN', birthDate: 'Date de naissance', shoeSize: 'Pointure', weight: 'Poids (kg)',
@@ -286,7 +286,7 @@ const en = {
       submitForApproval: 'Submit for approval',
       step: 'Step', addStep: 'Add a step', oneStepPerLine: 'one step per line',
       importTitle: 'Import from a URL (AI)', import: 'Import', importing: 'Analyzing…', importFailed: 'Import failed',
-      tags: 'Categories', allTags: 'All categories', addTag: 'Add…', createCocktail: 'New cocktail', base: 'Base',
+      tags: 'Categories', allTags: 'All categories', allBases: 'All bases', addTag: 'Add…', createCocktail: 'New cocktail', base: 'Base',
     },
     profile: {
       title: 'My profile', nickname: 'Nickname', iban: 'IBAN', birthDate: 'Date of birth', shoeSize: 'Shoe size', weight: 'Weight (kg)',

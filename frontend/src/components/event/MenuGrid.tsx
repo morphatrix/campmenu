@@ -7,6 +7,7 @@ import {
 import { Trash2, GripVertical, Eye } from 'lucide-react'
 import { api, resolveAsset } from '../../lib/api'
 import { useLive } from '../../context/LiveContext'
+import { COCKTAIL_BASES } from '../../lib/types'
 import type { Event, Meal, MealType, Recipe } from '../../lib/types'
 
 const MEAL_TYPES: MealType[] = ['BREAKFAST', 'LUNCH', 'DINNER', 'APERITIF', 'DESSERT']
@@ -116,6 +117,7 @@ export default function MenuGrid({ event, effectiveParticipants }: { event: Even
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [search, setSearch] = useState('')
   const [tagFilter, setTagFilter] = useState('')
+  const [baseFilter, setBaseFilter] = useState('')
   const [activeRecipe, setActiveRecipe] = useState<Recipe | null>(null)
   const days = dayCount(event.startDate, event.endDate)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
@@ -128,7 +130,11 @@ export default function MenuGrid({ event, effectiveParticipants }: { event: Even
     api.get<Recipe[]>('/recipes').then((r) => setRecipes(r.filter((x) => x.approved)))
   }, [event.id])
 
-  const tags = useMemo(() => [...new Set(recipes.flatMap((r) => r.tags ?? []))].sort(), [recipes])
+  const allTags = useMemo(() => [...new Set(recipes.flatMap((r) => r.tags ?? []))], [recipes])
+  // Cocktail bases (rhum, vodka…) get their own filter so they don't drown
+  // the actual recipe categories (apéro, plat…) in one long flat list.
+  const tags = useMemo(() => allTags.filter((tg) => !COCKTAIL_BASES.includes(tg)).sort(), [allTags])
+  const bases = useMemo(() => allTags.filter((tg) => COCKTAIL_BASES.includes(tg)).sort(), [allTags])
 
   // Live refresh of the planned meals (other admins dropping recipes).
   useLive(loadMeals)
@@ -171,7 +177,8 @@ export default function MenuGrid({ event, effectiveParticipants }: { event: Even
 
   const filtered = recipes.filter((r) =>
     r.name.toLowerCase().includes(search.toLowerCase()) &&
-    (tagFilter === '' || (r.tags ?? []).includes(tagFilter)),
+    (tagFilter === '' || (r.tags ?? []).includes(tagFilter)) &&
+    (baseFilter === '' || (r.tags ?? []).includes(baseFilter)),
   )
 
   return (
@@ -183,6 +190,12 @@ export default function MenuGrid({ event, effectiveParticipants }: { event: Even
             <select className="input mb-2 capitalize" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
               <option value="">{t('recipes.allTags')}</option>
               {tags.map((tg) => <option key={tg} value={tg}>{tg}</option>)}
+            </select>
+          )}
+          {bases.length > 0 && (
+            <select className="input mb-2 capitalize" value={baseFilter} onChange={(e) => setBaseFilter(e.target.value)}>
+              <option value="">{t('recipes.allBases')}</option>
+              {bases.map((tg) => <option key={tg} value={tg}>{tg}</option>)}
             </select>
           )}
           <div className="flex max-h-[60vh] flex-col gap-1.5 overflow-y-auto">

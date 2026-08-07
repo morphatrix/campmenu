@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext'
 import IngredientInput from '../components/IngredientInput'
 import ImageUpload from '../components/ImageUpload'
 import Modal from '../components/Modal'
-import { isCocktail, isStaff } from '../lib/types'
+import { COCKTAIL_BASES, isCocktail, isStaff } from '../lib/types'
 import type { Recipe, SiteConfig } from '../lib/types'
 
 interface DraftIngredient { name: string; quantity: number; unit: string }
@@ -20,7 +20,6 @@ const newStep = (text = ''): Step => ({ id: `s${Date.now()}_${stepSeq++}`, text 
 interface ImportDraft { name: string; basePersons: number; photoUrl?: string; ingredients: DraftIngredient[]; steps: string[] }
 
 const PREDEFINED_TAGS = ['apéro', 'entrée', 'plat', 'accompagnement', 'assaisonnement', 'dessert', 'petit-déjeuner', 'boisson']
-const COCKTAIL_BASES = ['rhum', 'vodka', 'gin', 'tequila', 'whisky', 'absinthe', 'vin', 'liqueur', 'sans alcool']
 
 // SortableStep is one draggable instruction row (drag handle + numbered input).
 function SortableStep({

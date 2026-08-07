@@ -189,6 +189,8 @@ export function isCocktail(r: { tags?: string[]; kind?: string }): boolean {
   return (r.tags ?? []).some((t) => t.toLowerCase() === 'cocktail') || r.kind === 'cocktail'
 }
 
+export const COCKTAIL_BASES = ['rhum', 'vodka', 'gin', 'tequila', 'whisky', 'absinthe', 'vin', 'liqueur', 'sans alcool']
+
 export type MealType = 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'APERITIF' | 'DESSERT'
 
 export interface MealRecipe {
