@@ -187,12 +187,15 @@ export default function MenuGrid({ event, effectiveParticipants }: { event: Even
         <aside className="card h-fit p-3">
           <input className="input mb-2" placeholder="🔍" value={search} onChange={(e) => setSearch(e.target.value)} />
           {tags.length > 0 && (
-            <select className="input mb-2 capitalize" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+            <select
+              className="input mb-2 capitalize" value={tagFilter}
+              onChange={(e) => { setTagFilter(e.target.value); setBaseFilter('') }}
+            >
               <option value="">{t('recipes.allTags')}</option>
               {tags.map((tg) => <option key={tg} value={tg}>{tg}</option>)}
             </select>
           )}
-          {bases.length > 0 && (
+          {tagFilter === 'cocktail' && bases.length > 0 && (
             <select className="input mb-2 capitalize" value={baseFilter} onChange={(e) => setBaseFilter(e.target.value)}>
               <option value="">{t('recipes.allBases')}</option>
               {bases.map((tg) => <option key={tg} value={tg}>{tg}</option>)}
