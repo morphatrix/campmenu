@@ -8,6 +8,7 @@ import { api, resolveAsset } from '../lib/api'
 import { useLive } from '../context/LiveContext'
 import { useAuth } from '../context/AuthContext'
 import IngredientInput from '../components/IngredientInput'
+import UnitInput from '../components/UnitInput'
 import ImageUpload from '../components/ImageUpload'
 import Modal from '../components/Modal'
 import { COCKTAIL_BASES, isCocktail, isStaff } from '../lib/types'
@@ -347,7 +348,7 @@ function RecipeFormModal({ initial, forceCocktail, knownTags, onClose, onSaved }
               <div key={i} className="grid grid-cols-[1fr_80px_100px_auto] gap-2">
                 <IngredientInput value={ing.name} onChange={(v) => setIng(i, { name: v })} onPickUnit={(u) => setIng(i, { unit: u })} />
                 <input className="input" type="number" step="0.1" placeholder="qté" value={ing.quantity || ''} onChange={(e) => setIng(i, { quantity: +e.target.value })} />
-                <input className="input" placeholder="unité" value={ing.unit} onChange={(e) => setIng(i, { unit: e.target.value })} />
+                <UnitInput value={ing.unit} onChange={(v) => setIng(i, { unit: v })} ingredientName={ing.name} />
                 <button type="button" className="btn-ghost" onClick={() => setIngredients((l) => l.filter((_, idx) => idx !== i))}><Trash2 size={15} /></button>
               </div>
             ))}

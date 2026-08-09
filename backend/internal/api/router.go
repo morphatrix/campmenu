@@ -136,6 +136,7 @@ func (s *Server) Router() http.Handler {
 			// Ingredients & units referential.
 			r.Get("/ingredients", s.handleListIngredients)
 			r.Get("/ingredients/suggest", s.handleSuggestIngredients)
+			r.Get("/ingredients/units", s.handleSuggestUnits)
 			r.Post("/ingredients", s.handleCreateIngredient)
 			r.Get("/units", s.handleListUnits)
 

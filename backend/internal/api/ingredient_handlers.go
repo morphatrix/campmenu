@@ -122,6 +122,30 @@ func (s *Server) handleRenameIngredient(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, ing)
 }
 
+// handleSuggestUnits powers unit autocomplete on recipe/cocktail ingredient
+// rows: units already used specifically for this ingredient (most-used
+// first), plus every unit ever typed across any recipe ingredient as a
+// fallback for new ingredients or when nothing specific matches.
+func (s *Server) handleSuggestUnits(w http.ResponseWriter, r *http.Request) {
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	forIngredient := []string{}
+	if name != "" {
+		s.DB.Model(&models.RecipeIngredient{}).
+			Joins("JOIN ingredients ON ingredients.id = recipe_ingredients.ingredient_id").
+			Where("LOWER(ingredients.canonical_name) = LOWER(?) AND recipe_ingredients.unit <> ''", name).
+			Group("recipe_ingredients.unit").
+			Order("count(*) DESC").
+			Pluck("recipe_ingredients.unit", &forIngredient)
+	}
+	allKnown := []string{}
+	s.DB.Model(&models.RecipeIngredient{}).
+		Where("unit <> ''").
+		Group("unit").
+		Order("count(*) DESC").
+		Pluck("unit", &allKnown)
+	writeJSON(w, http.StatusOK, map[string]any{"forIngredient": forIngredient, "allKnown": allKnown})
+}
+
 // handleListUnits returns the canonical units referential.
 func (s *Server) handleListUnits(w http.ResponseWriter, r *http.Request) {
 	var units []models.Unit
