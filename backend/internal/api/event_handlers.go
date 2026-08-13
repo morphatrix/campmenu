@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -226,7 +227,44 @@ func (s *Server) handleUpdateEvent(w http.ResponseWriter, r *http.Request) {
 	}
 	var event models.Event
 	s.DB.First(&event, "id = ?", id)
+	if req.StartDate != nil || req.EndDate != nil {
+		s.reconcileMealGrid(event)
+	}
 	writeJSON(w, http.StatusOK, event)
+}
+
+// reconcileMealGrid keeps the Meal slots in sync with the event's current
+// date range after a date change: creates the (dayIndex, type) slots newly
+// in range and deletes (cascading to their recipes/raw items) the ones that
+// fell out of range.
+func (s *Server) reconcileMealGrid(event models.Event) {
+	days := int(event.EndDate.Sub(event.StartDate).Hours()/24) + 1
+	if days < 1 {
+		days = 1
+	}
+	s.DB.Where("event_id = ? AND day_index >= ?", event.ID, days).Delete(&models.Meal{})
+
+	var existing []models.Meal
+	s.DB.Where("event_id = ?", event.ID).Find(&existing)
+	have := make(map[string]bool, len(existing))
+	for _, m := range existing {
+		have[mealSlotKey(m.DayIndex, m.Type)] = true
+	}
+	var toCreate []models.Meal
+	for d := 0; d < days; d++ {
+		for _, mt := range dayMealTypes {
+			if !have[mealSlotKey(d, mt)] {
+				toCreate = append(toCreate, models.Meal{EventID: event.ID, DayIndex: d, Type: mt})
+			}
+		}
+	}
+	if len(toCreate) > 0 {
+		s.DB.Create(&toCreate)
+	}
+}
+
+func mealSlotKey(dayIndex int, t models.MealType) string {
+	return strconv.Itoa(dayIndex) + ":" + string(t)
 }
 
 func (s *Server) handleDeleteEvent(w http.ResponseWriter, r *http.Request) {
