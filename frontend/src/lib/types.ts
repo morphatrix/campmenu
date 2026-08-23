@@ -235,6 +235,7 @@ export interface ShoppingLine {
   aisle?: string
   lists?: string[]
   days?: number[]
+  dayQuantities?: Record<string, number>
 }
 
 export interface TabConsumption {

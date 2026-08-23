@@ -80,19 +80,20 @@ func normalizeUnit(name, unit string, qty float64) (string, float64) {
 
 // shoppingLine is one consolidated row of the shopping list.
 type shoppingLine struct {
-	Section        string     `json:"section"`
-	Name           string     `json:"name"`
-	Unit           string     `json:"unit"`
-	Quantity       float64    `json:"quantity"`
-	IngredientID   *uuid.UUID `json:"ingredientId"`
-	Source         string     `json:"source"`
-	Observation    string     `json:"observation"`
-	Bought         bool       `json:"bought"`         // derived: bought quantity covers the total
-	BoughtQuantity float64    `json:"boughtQuantity"` // how much is already bought
-	BroughtBy      *uuid.UUID `json:"broughtBy"`
-	Aisle          string     `json:"aisle"` // supermarket section (AI-classified, may be empty)
-	Lists          []string   `json:"lists"` // source lists/tabs (menu, tab names) feeding this line
-	Days           []int      `json:"days"`  // 0-based day indices this line is needed on (Menus only; empty = spans the whole event)
+	Section        string          `json:"section"`
+	Name           string          `json:"name"`
+	Unit           string          `json:"unit"`
+	Quantity       float64         `json:"quantity"`
+	IngredientID   *uuid.UUID      `json:"ingredientId"`
+	Source         string          `json:"source"`
+	Observation    string          `json:"observation"`
+	Bought         bool            `json:"bought"`         // derived: bought quantity covers the total
+	BoughtQuantity float64         `json:"boughtQuantity"` // how much is already bought
+	BroughtBy      *uuid.UUID      `json:"broughtBy"`
+	Aisle          string          `json:"aisle"`         // supermarket section (AI-classified, may be empty)
+	Lists          []string        `json:"lists"`         // source lists/tabs (menu, tab names) feeding this line
+	Days           []int           `json:"days"`          // 0-based day indices this line is needed on (Menus only; empty = spans the whole event)
+	DayQuantities  map[int]float64 `json:"dayQuantities"` // quantity contributed by each day in Days (Menus only)
 }
 
 func appendUnique(s []string, v string) []string {
@@ -223,6 +224,10 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 		}
 		if curDay != nil {
 			l.Days = appendUniqueInt(l.Days, *curDay)
+			if l.DayQuantities == nil {
+				l.DayQuantities = map[int]float64{}
+			}
+			l.DayQuantities[*curDay] += qty
 		}
 	}
 
@@ -350,6 +355,9 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 		}
 		// Fully bought only when the bought quantity covers the current total.
 		l.Bought = l.Quantity > 0 && l.BoughtQuantity >= l.Quantity
+		for d, q := range l.DayQuantities {
+			l.DayQuantities[d] = math.Round(q*100) / 100
+		}
 		out = append(out, *l)
 	}
 	s.applyAisles(out)

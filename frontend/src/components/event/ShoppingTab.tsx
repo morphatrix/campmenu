@@ -10,6 +10,7 @@ const STANDARD = ['Drive', 'Station']
 
 type ShoppingPatch = Partial<ShoppingLine> & { clearBroughtBy?: boolean }
 type SortMode = 'category' | 'day' | 'alpha' | 'list'
+type GroupItem = { line: ShoppingLine; qty: number }
 
 export default function ShoppingTab({ event }: { event: Event }) {
   const { t, i18n } = useTranslation()
@@ -59,38 +60,43 @@ export default function ShoppingTab({ event }: { event: Event }) {
   // event day, by source list, or a single flat alphabetical list. Lines that
   // span several days/lists appear in each relevant group (same object, so
   // edits stay in sync); lines with no day/list info fall into a catch-all.
+  // In day mode, the displayed quantity is that day's slice (dayQuantities),
+  // not the line's overall total — the checkbox/update still target the
+  // full line since "bought" is a single decision for the whole ingredient.
   const groups = useMemo(() => {
     if (sortMode === 'alpha') {
       const sorted = [...filtered].sort((a, b) => a.name.localeCompare(b.name))
-      return sorted.length > 0 ? [['', sorted] as [string, ShoppingLine[]]] : []
+      return sorted.length > 0
+        ? [['', sorted.map((l) => ({ line: l, qty: l.quantity }))] as [string, GroupItem[]]]
+        : []
     }
     if (sortMode === 'day') {
-      const map = new Map<string, ShoppingLine[]>()
+      const map = new Map<string, GroupItem[]>()
       for (const l of filtered) {
         for (const key of l.days && l.days.length > 0 ? l.days.map(String) : ['other']) {
           if (!map.has(key)) map.set(key, [])
-          map.get(key)!.push(l)
+          map.get(key)!.push({ line: l, qty: key === 'other' ? l.quantity : (l.dayQuantities?.[key] ?? l.quantity) })
         }
       }
       return [...map.entries()]
         .sort((a, b) => (a[0] === 'other' ? 1 : b[0] === 'other' ? -1 : Number(a[0]) - Number(b[0])))
-        .map(([key, items]) => [key === 'other' ? t('shopping.otherDay') : dayLabel(Number(key)), items] as [string, ShoppingLine[]])
+        .map(([key, items]) => [key === 'other' ? t('shopping.otherDay') : dayLabel(Number(key)), items] as [string, GroupItem[]])
     }
     if (sortMode === 'list') {
-      const map = new Map<string, ShoppingLine[]>()
+      const map = new Map<string, GroupItem[]>()
       for (const l of filtered) {
         for (const name of l.lists && l.lists.length > 0 ? l.lists : [t('shopping.general')]) {
           if (!map.has(name)) map.set(name, [])
-          map.get(name)!.push(l)
+          map.get(name)!.push({ line: l, qty: l.quantity })
         }
       }
       return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
     }
-    const map = new Map<string, ShoppingLine[]>()
+    const map = new Map<string, GroupItem[]>()
     for (const l of filtered) {
       const key = byAisle ? (l.aisle || t('shopping.otherAisle')) : (l.section || '')
       if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push(l)
+      map.get(key)!.push({ line: l, qty: l.quantity })
     }
     return [...map.entries()].sort((a, b) => (a[0] === '' ? -1 : b[0] === '' ? 1 : a[0].localeCompare(b[0])))
   }, [filtered, sortMode, byAisle, t, i18n.language, event.startDate])
@@ -139,16 +145,16 @@ export default function ShoppingTab({ event }: { event: Event }) {
                 </tr>
               </thead>
               <tbody>
-                {items.map((line, i) => (
+                {items.map(({ line, qty }, i) => (
                   <tr key={`${label}|${line.name}|${line.unit}|${i}`} className={`border-t border-border ${line.bought ? 'opacity-50' : ''}`}>
                     <td className="p-2 text-center">
                       <input type="checkbox" checked={line.bought} onChange={(e) => update(line, { boughtQuantity: e.target.checked ? line.quantity : 0 })} title={t('shopping.bought')} />
                     </td>
                     <td className="p-2 font-medium">{line.name}</td>
-                    <td className="p-2 text-right tabular-nums">{line.quantity}</td>
+                    <td className="p-2 text-right tabular-nums">{qty}</td>
                     <td className="p-2 pl-1 text-left text-muted">
                       {line.unit}
-                      {line.boughtQuantity > 0 && line.boughtQuantity < line.quantity && (
+                      {sortMode !== 'day' && line.boughtQuantity > 0 && line.boughtQuantity < line.quantity && (
                         <span className="ml-1 text-xs text-accent">{t('shopping.remaining', { n: Math.round((line.quantity - line.boughtQuantity) * 100) / 100, unit: line.unit })}</span>
                       )}
                     </td>
