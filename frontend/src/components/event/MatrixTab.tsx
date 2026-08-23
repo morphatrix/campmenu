@@ -144,23 +144,11 @@ function VotedMatrix({ tab, event, isAdmin, onChange }: Props) {
                           never appear side by side, only one control per cell. */}
                       <div className="mx-auto w-24">
                         {lvl === -1 ? (
-                          <div className="flex items-center gap-1">
-                            <div className="relative flex-1">
-                              <input
-                                type="number" step="0.1" disabled={!mine} autoFocus={mine}
-                                className="input h-7 w-full py-0 pr-10 text-center text-xs"
-                                defaultValue={c?.customQty ?? ''}
-                                placeholder={t('matrix.custom')}
-                                onBlur={(e) => setLevel(art.id, -1, +e.target.value || 0)}
-                              />
-                              <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted">{art.unit}/j</span>
-                            </div>
-                            {mine && (
-                              <button type="button" className="shrink-0 text-muted hover:text-fg" title={t('matrix.backToChoices')} onClick={() => setLevel(art.id, 0)}>
-                                <Undo2 size={13} />
-                              </button>
-                            )}
-                          </div>
+                          <CustomQtyCell
+                            art={art} mine={mine} value={c?.customQty}
+                            onSave={(v) => setLevel(art.id, -1, v)}
+                            onBack={() => setLevel(art.id, 0)}
+                          />
                         ) : (
                           <select
                             className={`input h-7 w-full py-0 text-xs ${mine ? '' : 'text-muted'}`}
@@ -190,6 +178,43 @@ function VotedMatrix({ tab, event, isAdmin, onChange }: Props) {
         Quantité choisie <strong>par personne et par jour</strong> · Total = somme des choix × {days} jour{days > 1 ? 's' : ''}
       </p>
       {isAdmin && <AddVotedArticle tab={tab} event={event} existing={articles} onAdded={onChange} />}
+    </div>
+  )
+}
+
+// One participant's free-choice cell: a single bordered box (matching the
+// dropdown's look) with the number field and unit inline — the unit hides
+// while typing so it doesn't clutter the value, and reappears once the
+// figure is saved on blur.
+function CustomQtyCell({
+  art, mine, value, onSave, onBack,
+}: {
+  art: TabArticle
+  mine: boolean
+  value: number | null | undefined
+  onSave: (v: number) => void
+  onBack: () => void
+}) {
+  const { t } = useTranslation()
+  const [focused, setFocused] = useState(false)
+  return (
+    <div className="flex items-center gap-1">
+      <div className="input flex h-7 flex-1 items-center gap-1 px-2 py-0 text-xs">
+        <input
+          type="number" step="0.1" disabled={!mine} autoFocus={mine}
+          className="w-8 min-w-0 flex-1 border-none bg-transparent p-0 text-center focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          defaultValue={value ?? ''}
+          placeholder={t('matrix.custom')}
+          onFocus={() => setFocused(true)}
+          onBlur={(e) => { setFocused(false); onSave(+e.target.value || 0) }}
+        />
+        {!focused && <span className="shrink-0 text-muted">{art.unit}/j</span>}
+      </div>
+      {mine && (
+        <button type="button" className="shrink-0 text-muted hover:text-fg" title={t('matrix.backToChoices')} onClick={onBack}>
+          <Undo2 size={13} />
+        </button>
+      )}
     </div>
   )
 }
