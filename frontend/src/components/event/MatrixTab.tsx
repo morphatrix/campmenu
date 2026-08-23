@@ -209,7 +209,7 @@ function CustomQtyCell({
     // is set in `ch` via inline style — a real CSS dimension that tracks the
     // typed length exactly, unlike the HTML size attribute (unreliable in
     // flex) or any fixed Tailwind width (leaves a gap for short numbers).
-    <div className="input relative flex h-7 w-full items-center gap-0.5 py-0 pl-2 pr-6 text-xs">
+    <div className="input relative flex h-7 w-full items-center gap-0.5 py-0 pl-3 pr-6 text-xs">
       <input
         type="number" step="0.1" disabled={!mine} autoFocus={mine}
         style={{ width: `${Math.max(1, text.length)}ch` }}
