@@ -49,6 +49,7 @@ export interface TabArticle {
   unit: string
   section: string
   qtyPerLevel: Record<string, number>
+  allowCustomQty: boolean
   quantity: number
   position: number
 }
@@ -87,6 +88,7 @@ export interface ProductListItem {
   unit: string
   section: string
   qtyPerLevel: Record<string, number>
+  allowCustomQty: boolean
   quantity: number
   position: number
 }
@@ -243,7 +245,8 @@ export interface TabConsumption {
   tabId: string
   articleId: string
   userId: string
-  level: number
+  level: number // -1 = custom (see customQty)
+  customQty?: number | null
 }
 
 export interface Invite {

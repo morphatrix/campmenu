@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { ListPlus, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ListPlus, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../lib/api'
 import { useLive } from '../context/LiveContext'
 import type { ProductList } from '../lib/types'
@@ -96,28 +96,43 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
   const [unit, setUnit] = useState('pièce')
   const [section, setSection] = useState('')
   const [qty, setQty] = useState(1)
-  const [q1, setQ1] = useState(1)
-  const [q2, setQ2] = useState(2)
-  const [q3, setQ3] = useState(3)
+  const [choices, setChoices] = useState<number[]>([1, 2, 3])
+  const [allowCustom, setAllowCustom] = useState(false)
   const [newSection, setNewSection] = useState('')
 
   async function add() {
     if (!name.trim()) return
-    const body = voted
-      ? { name, unit, section, qtyPerLevel: { '1': q1, '2': q2, '3': q3 } }
-      : { name, unit, section, quantity: qty }
+    let body: Record<string, unknown>
+    if (voted) {
+      const qtyPerLevel: Record<string, number> = {}
+      choices.forEach((v, i) => { qtyPerLevel[String(i + 1)] = v })
+      body = { name, unit, section, qtyPerLevel, allowCustomQty: allowCustom }
+    } else {
+      body = { name, unit, section, quantity: qty }
+    }
     await api.post(`/product-lists/${list.id}/items`, body)
     setName('')
     onChange()
   }
   async function remove(itemId: string) { await api.del(`/product-list-items/${itemId}`); onChange() }
   type Item = NonNullable<typeof list.items>[number]
-  async function updateItem(it: Item, patch: Partial<Pick<Item, 'section' | 'quantity' | 'qtyPerLevel'>>) {
+  async function updateItem(it: Item, patch: Partial<Pick<Item, 'section' | 'quantity' | 'qtyPerLevel' | 'allowCustomQty'>>) {
     await api.patch(`/product-list-items/${it.id}`, {
-      name: it.name, unit: it.unit, section: it.section, quantity: it.quantity, qtyPerLevel: it.qtyPerLevel,
+      name: it.name, unit: it.unit, section: it.section, quantity: it.quantity,
+      qtyPerLevel: it.qtyPerLevel, allowCustomQty: it.allowCustomQty,
       ...patch,
     })
     onChange()
+  }
+  function addChoice(it: Item) {
+    const keys = Object.keys(it.qtyPerLevel ?? {}).map(Number)
+    const next = String((keys.length ? Math.max(...keys) : 0) + 1)
+    updateItem(it, { qtyPerLevel: { ...it.qtyPerLevel, [next]: 0 } })
+  }
+  function removeChoice(it: Item, key: string) {
+    const rest = { ...it.qtyPerLevel }
+    delete rest[key]
+    updateItem(it, { qtyPerLevel: rest })
   }
   async function toggleVoted() { await api.patch(`/product-lists/${list.id}`, { voted: !voted }); onChange() }
   async function addSection() {
@@ -161,11 +176,11 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
         <p className="mb-5 text-sm text-muted">{t('lists.noProducts')}</p>
       ) : (
         <div className="mb-5 space-y-4">
-          <div className="grid grid-cols-[1fr_60px_150px_170px_24px] gap-2 px-1 text-xs font-semibold uppercase text-muted">
+          <div className="grid grid-cols-[1fr_60px_150px_minmax(170px,auto)_24px] gap-2 px-1 text-xs font-semibold uppercase text-muted">
             <span>{t('lists.product')}</span>
             <span>unité</span>
             <span>{sections.length > 0 ? 'section' : ''}</span>
-            <span>{voted ? 'niv. 1 / 2 / 3' : t('lists.total')}</span>
+            <span>{voted ? t('matrix.possibleChoices') : t('lists.total')}</span>
             <span />
           </div>
           {groups.map((sec) => {
@@ -176,7 +191,7 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
                 {sec && <p className="mb-1 text-xs font-semibold uppercase text-muted">{sec}</p>}
                 <ul className="divide-y divide-border">
                   {its.map((it) => (
-                    <li key={it.id} className="grid grid-cols-[1fr_60px_150px_170px_24px] items-center gap-2 py-1.5 text-sm">
+                    <li key={it.id} className="grid grid-cols-[1fr_60px_150px_minmax(170px,auto)_24px] items-center gap-2 py-1.5 text-sm">
                       <span className="truncate font-medium">{it.name}</span>
                       <span className="text-xs text-muted">{it.unit}</span>
                       <span>
@@ -192,17 +207,24 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
                         )}
                       </span>
                       {voted ? (
-                        <span className="flex items-center gap-1 text-xs text-muted">
-                          {['1', '2', '3'].map((lvl) => (
-                            <input
-                              key={lvl}
-                              className="input h-7 w-12 py-0 text-center text-xs"
-                              type="number"
-                              step="0.1"
-                              value={it.qtyPerLevel?.[lvl] ?? 0}
-                              onChange={(e) => updateItem(it, { qtyPerLevel: { ...it.qtyPerLevel, [lvl]: +e.target.value } })}
-                            />
+                        <span className="flex flex-wrap items-center gap-1 text-xs text-muted">
+                          {Object.keys(it.qtyPerLevel ?? {}).sort((a, b) => Number(a) - Number(b)).map((lvl) => (
+                            <span key={lvl} className="flex items-center">
+                              <input
+                                className="input h-7 w-12 py-0 text-center text-xs"
+                                type="number"
+                                step="0.1"
+                                value={it.qtyPerLevel?.[lvl] ?? 0}
+                                onChange={(e) => updateItem(it, { qtyPerLevel: { ...it.qtyPerLevel, [lvl]: +e.target.value } })}
+                              />
+                              <button type="button" className="hover:text-danger" onClick={() => removeChoice(it, lvl)}><X size={11} /></button>
+                            </span>
                           ))}
+                          <button type="button" className="text-muted hover:text-fg" onClick={() => addChoice(it)}><Plus size={12} /></button>
+                          <label className="ml-1 flex items-center gap-0.5" title={t('matrix.allowCustom')}>
+                            <input type="checkbox" checked={it.allowCustomQty} onChange={(e) => updateItem(it, { allowCustomQty: e.target.checked })} />
+                            {t('matrix.custom')}
+                          </label>
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-xs text-muted">
@@ -246,12 +268,28 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
         )}
         {voted ? (
           <div>
-            <label className="label">Suggestion (choix 1, 2, 3)</label>
-            <div className="flex gap-1">
-              <input className="input w-14" type="number" step="0.1" value={q1} onChange={(e) => setQ1(+e.target.value)} />
-              <input className="input w-14" type="number" step="0.1" value={q2} onChange={(e) => setQ2(+e.target.value)} />
-              <input className="input w-14" type="number" step="0.1" value={q3} onChange={(e) => setQ3(+e.target.value)} />
+            <label className="label">{t('matrix.possibleChoices')}</label>
+            <div className="flex flex-wrap items-center gap-1">
+              {choices.map((v, i) => (
+                <span key={i} className="flex items-center">
+                  <input
+                    className="input w-14" type="number" step="0.1" value={v}
+                    onChange={(e) => setChoices((c) => c.map((x, idx) => (idx === i ? +e.target.value : x)))}
+                  />
+                  {choices.length > 1 && (
+                    <button type="button" className="ml-0.5 text-muted hover:text-danger" onClick={() => setChoices((c) => c.filter((_, idx) => idx !== i))}>
+                      <X size={12} />
+                    </button>
+                  )}
+                </span>
+              ))}
+              <button type="button" className="btn-ghost h-8 px-2" onClick={() => setChoices((c) => [...c, (c[c.length - 1] ?? 0) + 1])}>
+                <Plus size={13} />
+              </button>
             </div>
+            <label className="mt-1.5 flex items-center gap-1.5 text-xs text-muted">
+              <input type="checkbox" checked={allowCustom} onChange={(e) => setAllowCustom(e.target.checked)} /> {t('matrix.allowCustom')}
+            </label>
           </div>
         ) : (
           <div>

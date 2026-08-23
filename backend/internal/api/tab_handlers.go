@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -234,12 +235,13 @@ func (s *Server) handleReorderTabs(w http.ResponseWriter, r *http.Request) {
 // ---- articles within a matrix tab ----
 
 type articleReq struct {
-	Name         string         `json:"name"`
-	Unit         string         `json:"unit"`
-	Section      string         `json:"section"`
-	IngredientID *uuid.UUID     `json:"ingredientId"`
-	QtyPerLevel  models.JSONNum `json:"qtyPerLevel"`
-	Quantity     float64        `json:"quantity"`
+	Name           string         `json:"name"`
+	Unit           string         `json:"unit"`
+	Section        string         `json:"section"`
+	IngredientID   *uuid.UUID     `json:"ingredientId"`
+	QtyPerLevel    models.JSONNum `json:"qtyPerLevel"`
+	AllowCustomQty *bool          `json:"allowCustomQty"`
+	Quantity       float64        `json:"quantity"`
 }
 
 func (s *Server) handleCreateArticle(w http.ResponseWriter, r *http.Request) {
@@ -262,7 +264,8 @@ func (s *Server) handleCreateArticle(w http.ResponseWriter, r *http.Request) {
 		Select("COALESCE(MAX(position),0)").Scan(&maxPos)
 	art := models.TabArticle{
 		TabID: tabID, Name: req.Name, Unit: req.Unit, Section: req.Section, IngredientID: req.IngredientID,
-		QtyPerLevel: req.QtyPerLevel, Quantity: req.Quantity, Position: maxPos + 1,
+		QtyPerLevel: req.QtyPerLevel, AllowCustomQty: req.AllowCustomQty != nil && *req.AllowCustomQty,
+		Quantity: req.Quantity, Position: maxPos + 1,
 	}
 	if err := s.DB.Create(&art).Error; err != nil {
 		writeError(w, http.StatusInternalServerError, "création de l'article impossible")
@@ -285,6 +288,9 @@ func (s *Server) handleUpdateArticle(w http.ResponseWriter, r *http.Request) {
 	updates := map[string]any{"name": req.Name, "unit": req.Unit, "section": req.Section, "quantity": req.Quantity}
 	if req.QtyPerLevel != nil {
 		updates["qty_per_level"] = req.QtyPerLevel
+	}
+	if req.AllowCustomQty != nil {
+		updates["allow_custom_qty"] = *req.AllowCustomQty
 	}
 	s.DB.Model(&models.TabArticle{}).Where("id = ?", articleID).Updates(updates)
 	var art models.TabArticle
@@ -317,11 +323,16 @@ func (s *Server) handleGetConsumption(w http.ResponseWriter, r *http.Request) {
 }
 
 type setConsumptionReq struct {
-	Level int `json:"level"`
+	Level     int      `json:"level"`
+	CustomQty *float64 `json:"customQty"`
 }
 
-// handleSetConsumption sets the level for the CURRENT user only — a participant
-// can never edit another participant's choices.
+// handleSetConsumption sets the level (or a free-typed custom quantity, when
+// the article allows it) for the CURRENT user only — a participant can never
+// edit another participant's choices. Level -1 means "custom": the article
+// must have AllowCustomQty set and CustomQty must be provided. Otherwise
+// Level must be 0 (aucun) or one of the article's own QtyPerLevel keys —
+// there's no fixed max, each article can define as many choices as needed.
 func (s *Server) handleSetConsumption(w http.ResponseWriter, r *http.Request) {
 	tabID, _ := uuid.Parse(chi.URLParam(r, "tabID"))
 	articleID, err := uuid.Parse(chi.URLParam(r, "articleID"))
@@ -334,15 +345,29 @@ func (s *Server) handleSetConsumption(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "corps de requête invalide")
 		return
 	}
-	if req.Level < 0 || req.Level > 3 {
-		writeError(w, http.StatusBadRequest, "niveau hors plage (0-3)")
+	var art models.TabArticle
+	if err := s.DB.First(&art, "id = ?", articleID).Error; err != nil {
+		writeError(w, http.StatusBadRequest, "article introuvable")
 		return
+	}
+	var customQty *float64
+	if req.Level == -1 {
+		if !art.AllowCustomQty || req.CustomQty == nil || *req.CustomQty < 0 {
+			writeError(w, http.StatusBadRequest, "choix libre non autorisé pour cet article")
+			return
+		}
+		customQty = req.CustomQty
+	} else if req.Level != 0 {
+		if _, ok := art.QtyPerLevel[strconv.Itoa(req.Level)]; !ok {
+			writeError(w, http.StatusBadRequest, "niveau inconnu pour cet article")
+			return
+		}
 	}
 	uid := userIDFrom(r)
 	row := models.TabConsumption{TabID: tabID, ArticleID: articleID, UserID: uid}
 	s.DB.Where("tab_id = ? AND article_id = ? AND user_id = ?", tabID, articleID, uid).
 		FirstOrCreate(&row)
-	s.DB.Model(&row).Update("level", req.Level)
-	row.Level = req.Level
+	s.DB.Model(&row).Updates(map[string]any{"level": req.Level, "custom_qty": customQty})
+	row.Level, row.CustomQty = req.Level, customQty
 	writeJSON(w, http.StatusOK, row)
 }

@@ -62,8 +62,17 @@ function SaveListToCatalog({
 
 // ─── Voted: participants pick a per-day quantity, total = Σ × days ──────────
 
-function levelLabel(art: TabArticle, level: string): string {
+// A given article's choice list: "0" (aucun) + every key the admin defined in
+// qtyPerLevel (as many or as few as they like) + a free-choice option when
+// the article allows it. Not tied to a tab-wide count.
+function levelsFor(art: TabArticle): string[] {
+  const keys = Object.keys(art.qtyPerLevel ?? {}).sort((a, b) => Number(a) - Number(b))
+  return ['0', ...keys, ...(art.allowCustomQty ? ['-1'] : [])]
+}
+
+function levelLabel(t: (k: string) => string, art: TabArticle, level: string): string {
   if (level === '0') return '0'
+  if (level === '-1') return t('matrix.custom')
   const qty = art.qtyPerLevel?.[level]
   if (qty == null) return level
   return `${qty} ${art.unit}/j`.trim()
@@ -76,7 +85,6 @@ function VotedMatrix({ tab, event, isAdmin, onChange }: Props) {
   const articles = tab.articles ?? []
   const days = dayCount(event.startDate, event.endDate)
   const participants = (event.participants ?? []).filter((p) => p.user)
-  const levels = Object.keys(tab.consumptionLabels ?? { '0': '', '1': '', '2': '', '3': '' }).sort()
 
   async function loadCons() {
     setCons(await api.get<TabConsumption[]>(`/tabs/${tab.id}/consumption`))
@@ -84,22 +92,24 @@ function VotedMatrix({ tab, event, isAdmin, onChange }: Props) {
   useEffect(() => { loadCons() }, [tab.id])
   useLive(loadCons)
 
-  const levelOf = useMemo(() => {
-    const map = new Map<string, number>()
-    cons.forEach((c) => map.set(`${c.articleId}:${c.userId}`, c.level))
+  const consOf = useMemo(() => {
+    const map = new Map<string, TabConsumption>()
+    cons.forEach((c) => map.set(`${c.articleId}:${c.userId}`, c))
     return map
   }, [cons])
 
-  async function setLevel(articleId: string, level: number) {
-    await api.put(`/tabs/${tab.id}/articles/${articleId}/consumption`, { level })
+  async function setLevel(articleId: string, level: number, customQty?: number) {
+    await api.put(`/tabs/${tab.id}/articles/${articleId}/consumption`, { level, customQty: customQty ?? null })
     loadCons()
   }
 
   function total(art: TabArticle): number {
     let sum = 0
     participants.forEach((p) => {
-      const lvl = levelOf.get(`${art.id}:${p.userId}`) ?? 0
-      if (lvl > 0) sum += art.qtyPerLevel?.[String(lvl)] ?? 0
+      const c = consOf.get(`${art.id}:${p.userId}`)
+      const lvl = c?.level ?? 0
+      if (lvl === -1) sum += c?.customQty ?? 0
+      else if (lvl > 0) sum += art.qtyPerLevel?.[String(lvl)] ?? 0
     })
     return Math.round(sum * days * 100) / 100
   }
@@ -125,15 +135,27 @@ function VotedMatrix({ tab, event, isAdmin, onChange }: Props) {
                 <td className="p-2 font-medium">{art.name} <span className="text-xs text-muted">{art.unit}</span></td>
                 {participants.map((p) => {
                   const mine = p.userId === user?.id
-                  const lvl = levelOf.get(`${art.id}:${p.userId}`) ?? 0
+                  const c = consOf.get(`${art.id}:${p.userId}`)
+                  const lvl = c?.level ?? 0
                   return (
                     <td key={p.id} className="p-1 text-center">
-                      <select
-                        className={`rounded border border-border px-1 py-0.5 text-xs ${mine ? 'bg-card' : 'bg-surface text-muted'}`}
-                        value={lvl} disabled={!mine} onChange={(e) => setLevel(art.id, +e.target.value)}
-                      >
-                        {levels.map((l) => <option key={l} value={l}>{levelLabel(art, l)}</option>)}
-                      </select>
+                      <div className="flex items-center justify-center gap-1">
+                        <select
+                          className={`rounded border border-border px-1 py-0.5 text-xs ${mine ? 'bg-card' : 'bg-surface text-muted'}`}
+                          value={lvl} disabled={!mine}
+                          onChange={(e) => { const v = +e.target.value; setLevel(art.id, v, v === -1 ? (c?.customQty ?? 0) : undefined) }}
+                        >
+                          {levelsFor(art).map((l) => <option key={l} value={l}>{levelLabel(t, art, l)}</option>)}
+                        </select>
+                        {lvl === -1 && (
+                          <input
+                            type="number" step="0.1" disabled={!mine}
+                            className="w-14 rounded border border-border px-1 py-0.5 text-xs"
+                            defaultValue={c?.customQty ?? 0}
+                            onBlur={(e) => setLevel(art.id, -1, +e.target.value)}
+                          />
+                        )}
+                      </div>
                     </td>
                   )
                 })}
@@ -163,9 +185,8 @@ function AddVotedArticle({ tab, event, existing, onAdded }: { tab: EventTab; eve
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [name, setName] = useState('')
   const [unit, setUnit] = useState('pièce')
-  const [q1, setQ1] = useState(1)
-  const [q2, setQ2] = useState(2)
-  const [q3, setQ3] = useState(3)
+  const [choices, setChoices] = useState<number[]>([1, 2, 3])
+  const [allowCustom, setAllowCustom] = useState(false)
 
   async function loadList() {
     if (!tab.listId) return
@@ -179,16 +200,17 @@ function AddVotedArticle({ tab, event, existing, onAdded }: { tab: EventTab; eve
 
   async function addSelection() {
     for (const it of available.filter((i) => selected.has(i.id))) {
-      await api.post(`/tabs/${tab.id}/articles`, { name: it.name, unit: it.unit, qtyPerLevel: it.qtyPerLevel })
+      await api.post(`/tabs/${tab.id}/articles`, { name: it.name, unit: it.unit, qtyPerLevel: it.qtyPerLevel, allowCustomQty: it.allowCustomQty })
     }
     setSelected(new Set())
     onAdded()
   }
   async function addManual() {
     if (!name.trim()) return
-    const qtyPerLevel = { '1': q1, '2': q2, '3': q3 }
-    await api.post(`/tabs/${tab.id}/articles`, { name, unit, qtyPerLevel })
-    if (tab.listId) await api.post(`/product-lists/${tab.listId}/items`, { name, unit, qtyPerLevel })
+    const qtyPerLevel: Record<string, number> = {}
+    choices.forEach((v, i) => { qtyPerLevel[String(i + 1)] = v })
+    await api.post(`/tabs/${tab.id}/articles`, { name, unit, qtyPerLevel, allowCustomQty: allowCustom })
+    if (tab.listId) await api.post(`/product-lists/${tab.listId}/items`, { name, unit, qtyPerLevel, allowCustomQty: allowCustom })
     setName('')
     onAdded()
   }
@@ -216,12 +238,28 @@ function AddVotedArticle({ tab, event, existing, onAdded }: { tab: EventTab; eve
         <div><label className="label">{t('matrix.newArticle')}</label><IngredientInput className="input w-44" value={name} onChange={setName} onPickUnit={setUnit} onKeyDown={(e) => e.key === 'Enter' && addManual()} /></div>
         <div><label className="label">unité</label><input className="input w-24" value={unit} onChange={(e) => setUnit(e.target.value)} /></div>
         <div>
-          <label className="label">Suggestion (choix 1, 2, 3)</label>
-          <div className="flex gap-1">
-            <input className="input w-16" type="number" step="0.1" value={q1} onChange={(e) => setQ1(+e.target.value)} />
-            <input className="input w-16" type="number" step="0.1" value={q2} onChange={(e) => setQ2(+e.target.value)} />
-            <input className="input w-16" type="number" step="0.1" value={q3} onChange={(e) => setQ3(+e.target.value)} />
+          <label className="label">{t('matrix.possibleChoices')}</label>
+          <div className="flex flex-wrap items-center gap-1">
+            {choices.map((v, i) => (
+              <span key={i} className="flex items-center">
+                <input
+                  className="input w-16" type="number" step="0.1" value={v}
+                  onChange={(e) => setChoices((c) => c.map((x, idx) => (idx === i ? +e.target.value : x)))}
+                />
+                {choices.length > 1 && (
+                  <button type="button" className="ml-0.5 text-muted hover:text-danger" onClick={() => setChoices((c) => c.filter((_, idx) => idx !== i))}>
+                    <X size={12} />
+                  </button>
+                )}
+              </span>
+            ))}
+            <button type="button" className="btn-ghost h-8 px-2" onClick={() => setChoices((c) => [...c, (c[c.length - 1] ?? 0) + 1])}>
+              <Plus size={13} />
+            </button>
           </div>
+          <label className="mt-1.5 flex items-center gap-1.5 text-xs text-muted">
+            <input type="checkbox" checked={allowCustom} onChange={(e) => setAllowCustom(e.target.checked)} /> {t('matrix.allowCustom')}
+          </label>
         </div>
         <button className="btn-primary" onClick={addManual}><Plus size={15} /> {t('matrix.addArticle')}</button>
       </div>

@@ -55,12 +55,13 @@ type ProductListExport struct {
 }
 
 type ProductListItemExport struct {
-	Name        string             `json:"name"`
-	Unit        string             `json:"unit"`
-	Section     string             `json:"section"`
-	QtyPerLevel map[string]float64 `json:"qtyPerLevel"`
-	Quantity    float64            `json:"quantity"`
-	Position    int                `json:"position"`
+	Name           string             `json:"name"`
+	Unit           string             `json:"unit"`
+	Section        string             `json:"section"`
+	QtyPerLevel    map[string]float64 `json:"qtyPerLevel"`
+	AllowCustomQty bool               `json:"allowCustomQty"`
+	Quantity       float64            `json:"quantity"`
+	Position       int                `json:"position"`
 }
 
 type RecipeExport struct {
@@ -155,6 +156,7 @@ type TabArticleExport struct {
 	Unit           string             `json:"unit"`
 	Section        string             `json:"section"`
 	QtyPerLevel    map[string]float64 `json:"qtyPerLevel"`
+	AllowCustomQty bool               `json:"allowCustomQty"`
 	Quantity       float64            `json:"quantity"`
 	Position       int                `json:"position"`
 }
@@ -167,9 +169,10 @@ type TabRecipeExport struct {
 }
 
 type TabConsumptionExport struct {
-	ArticleIndex int    `json:"articleIndex"`
-	UserEmail    string `json:"userEmail"`
-	Level        int    `json:"level"`
+	ArticleIndex int      `json:"articleIndex"`
+	UserEmail    string   `json:"userEmail"`
+	Level        int      `json:"level"`
+	CustomQty    *float64 `json:"customQty"`
 }
 
 type MealExport struct {
@@ -351,7 +354,7 @@ func exportProductList(l models.ProductList) ProductListExport {
 	for _, it := range l.Items {
 		out.Items = append(out.Items, ProductListItemExport{
 			Name: it.Name, Unit: it.Unit, Section: it.Section,
-			QtyPerLevel: it.QtyPerLevel, Quantity: it.Quantity, Position: it.Position,
+			QtyPerLevel: it.QtyPerLevel, AllowCustomQty: it.AllowCustomQty, Quantity: it.Quantity, Position: it.Position,
 		})
 	}
 	if out.Items == nil {
@@ -417,7 +420,8 @@ func (s *Server) exportEvent(idStr string) (EventExport, error) {
 			articleIndexByID[a.ID] = i
 			te.Articles = append(te.Articles, TabArticleExport{
 				IngredientName: s.ingredientNameByID(a.IngredientID), Name: a.Name, Unit: a.Unit,
-				Section: a.Section, QtyPerLevel: a.QtyPerLevel, Quantity: a.Quantity, Position: a.Position,
+				Section: a.Section, QtyPerLevel: a.QtyPerLevel, AllowCustomQty: a.AllowCustomQty,
+				Quantity: a.Quantity, Position: a.Position,
 			})
 		}
 		for _, tr := range tab.Recipes {
@@ -437,7 +441,7 @@ func (s *Server) exportEvent(idStr string) (EventExport, error) {
 				continue
 			}
 			te.Consumptions = append(te.Consumptions, TabConsumptionExport{
-				ArticleIndex: idx, UserEmail: s.emailByID(c.UserID), Level: c.Level,
+				ArticleIndex: idx, UserEmail: s.emailByID(c.UserID), Level: c.Level, CustomQty: c.CustomQty,
 			})
 		}
 		if te.Articles == nil {
@@ -812,7 +816,7 @@ func upsertProductList(tx *gorm.DB, l ProductListExport) error {
 	for _, it := range l.Items {
 		item := models.ProductListItem{
 			ListID: list.ID, Name: it.Name, Unit: it.Unit, Section: it.Section,
-			QtyPerLevel: it.QtyPerLevel, Quantity: it.Quantity, Position: it.Position,
+			QtyPerLevel: it.QtyPerLevel, AllowCustomQty: it.AllowCustomQty, Quantity: it.Quantity, Position: it.Position,
 		}
 		if err := tx.Create(&item).Error; err != nil {
 			return err
@@ -896,7 +900,7 @@ func upsertEvent(tx *gorm.DB, ev EventExport, adminID uuid.UUID) ([]string, erro
 			}
 			article := models.TabArticle{
 				TabID: tab.ID, IngredientID: ingID, Name: a.Name, Unit: a.Unit, Section: a.Section,
-				QtyPerLevel: a.QtyPerLevel, Quantity: a.Quantity, Position: a.Position,
+				QtyPerLevel: a.QtyPerLevel, AllowCustomQty: a.AllowCustomQty, Quantity: a.Quantity, Position: a.Position,
 			}
 			if err := tx.Create(&article).Error; err != nil {
 				return nil, err
@@ -923,7 +927,7 @@ func upsertEvent(tx *gorm.DB, ev EventExport, adminID uuid.UUID) ([]string, erro
 				skipped = append(skipped, fmt.Sprintf("événement %s : vote de %s introuvable (utilisateur absent)", ev.Name, c.UserEmail))
 				continue
 			}
-			if err := tx.Create(&models.TabConsumption{TabID: tab.ID, ArticleID: articleID, UserID: u.ID, Level: c.Level}).Error; err != nil {
+			if err := tx.Create(&models.TabConsumption{TabID: tab.ID, ArticleID: articleID, UserID: u.ID, Level: c.Level, CustomQty: c.CustomQty}).Error; err != nil {
 				return nil, err
 			}
 		}

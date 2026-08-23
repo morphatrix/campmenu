@@ -49,17 +49,17 @@ type User struct {
 	ShoeSize          *float64   `json:"shoeSize"`
 	Weight            *float64   `json:"weight"`
 	PhotoURL          string     `json:"photoUrl"`
-	Theme             string     `gorm:"default:'auto'" json:"theme"`          // light | dark | auto
+	Theme             string     `gorm:"default:'auto'" json:"theme"`           // light | dark | auto
 	ColorPalette      string     `gorm:"default:'default'" json:"colorPalette"` // default | palette2..4
 	Nickname          string     `json:"nickname"`
 	IBAN              string     `json:"iban"`
 	// IBANVisibility controls who may see this user's IBAN: "public" (everyone),
 	// "selected" (an explicit grant list) or "request" (granted on accepted ask).
-	IBANVisibility string `gorm:"column:iban_visibility;default:'request'" json:"ibanVisibility"`
-	ColorblindMode    bool       `gorm:"default:false" json:"colorblindMode"`
-	Language          string     `gorm:"default:'fr'" json:"language"`
-	ResetToken        string     `gorm:"index" json:"-"`
-	ResetTokenExpiry  *time.Time `json:"-"`
+	IBANVisibility   string     `gorm:"column:iban_visibility;default:'request'" json:"ibanVisibility"`
+	ColorblindMode   bool       `gorm:"default:false" json:"colorblindMode"`
+	Language         string     `gorm:"default:'fr'" json:"language"`
+	ResetToken       string     `gorm:"index" json:"-"`
+	ResetTokenExpiry *time.Time `json:"-"`
 	// Impersonating is transient (not stored): set on /me when an admin is
 	// currently impersonating this user.
 	Impersonating bool `gorm:"-" json:"impersonating"`
@@ -198,7 +198,11 @@ type TabArticle struct {
 	Unit         string     `json:"unit"`
 	Section      string     `json:"section"` // grouping within the tab (e.g. Cuisine, Hygiène)
 	// Quantity per person per day for each consumption level, e.g. {"1":1,"2":2,"3":3} (voted tabs).
+	// The admin defines as many or as few levels as needed — there's no fixed count.
 	QtyPerLevel JSONNum `gorm:"type:jsonb" json:"qtyPerLevel"`
+	// AllowCustomQty lets a participant type an arbitrary per-day quantity
+	// instead of picking one of QtyPerLevel's preset choices (voted tabs).
+	AllowCustomQty bool `gorm:"default:false" json:"allowCustomQty"`
 	// Quantity is the organizer-set total for the whole event (non-voted tabs).
 	Quantity float64 `json:"quantity"`
 	Position int     `json:"position"`
@@ -221,7 +225,10 @@ type TabConsumption struct {
 	TabID     uuid.UUID `gorm:"type:uuid;index;uniqueIndex:idx_tab_article_user" json:"tabId"`
 	ArticleID uuid.UUID `gorm:"type:uuid;uniqueIndex:idx_tab_article_user" json:"articleId"`
 	UserID    uuid.UUID `gorm:"type:uuid;uniqueIndex:idx_tab_article_user" json:"userId"`
-	Level     int       `gorm:"default:0" json:"level"` // 0..3
+	// Level: 0 = aucun, N = the QtyPerLevel["N"] preset, -1 = custom (see CustomQty).
+	Level int `gorm:"default:0" json:"level"`
+	// CustomQty holds the participant's own value when Level == -1 (article.AllowCustomQty only).
+	CustomQty *float64 `json:"customQty"`
 }
 
 // Location is a candidate lodging proposed by a participant for an event,
@@ -274,13 +281,14 @@ type ProductList struct {
 // ProductListItem is one catalog entry of a ProductList.
 type ProductListItem struct {
 	Base
-	ListID      uuid.UUID `gorm:"type:uuid;index" json:"listId"`
-	Name        string    `gorm:"not null" json:"name"`
-	Unit        string    `json:"unit"`
-	Section     string    `json:"section"`
-	QtyPerLevel JSONNum   `gorm:"type:jsonb" json:"qtyPerLevel"`
-	Quantity    float64   `json:"quantity"` // default total for non-voted lists
-	Position    int       `json:"position"`
+	ListID         uuid.UUID `gorm:"type:uuid;index" json:"listId"`
+	Name           string    `gorm:"not null" json:"name"`
+	Unit           string    `json:"unit"`
+	Section        string    `json:"section"`
+	QtyPerLevel    JSONNum   `gorm:"type:jsonb" json:"qtyPerLevel"`
+	AllowCustomQty bool      `gorm:"default:false" json:"allowCustomQty"`
+	Quantity       float64   `json:"quantity"` // default total for non-voted lists
+	Position       int       `json:"position"`
 }
 
 // Unit is the canonical units referential (the Excel "data" sheet).
@@ -305,8 +313,8 @@ type Recipe struct {
 	PhotoURL     string             `json:"photoUrl"`
 	SourceURL    string             `json:"sourceUrl"` // optional link to the original recipe page
 	Instructions string             `json:"instructions"`
-	Kind         string             `json:"kind"`                    // legacy single category (kept in sync with tags)
-	Tags         JSONStrings        `gorm:"type:jsonb" json:"tags"`  // apéro | entrée | plat | dessert | cocktail | …
+	Kind         string             `json:"kind"`                   // legacy single category (kept in sync with tags)
+	Tags         JSONStrings        `gorm:"type:jsonb" json:"tags"` // apéro | entrée | plat | dessert | cocktail | …
 	Approved     bool               `gorm:"default:false" json:"approved"`
 	CreatedBy    uuid.UUID          `gorm:"type:uuid" json:"createdBy"`
 	Ingredients  []RecipeIngredient `gorm:"constraint:OnDelete:CASCADE" json:"ingredients,omitempty"`

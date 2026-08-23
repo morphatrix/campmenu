@@ -293,11 +293,18 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 			var cons []models.TabConsumption
 			s.DB.Where("tab_id = ?", tab.ID).Find(&cons)
 			levelByArticle := map[uuid.UUID][]int{}
+			customByArticle := map[uuid.UUID]float64{}
 			for _, c := range cons {
+				if c.Level == -1 {
+					if c.CustomQty != nil {
+						customByArticle[c.ArticleID] += *c.CustomQty
+					}
+					continue
+				}
 				levelByArticle[c.ArticleID] = append(levelByArticle[c.ArticleID], c.Level)
 			}
 			for _, art := range tab.Articles {
-				total := 0.0
+				total := customByArticle[art.ID]
 				for _, lvl := range levelByArticle[art.ID] {
 					if lvl > 0 {
 						if q, ok := art.QtyPerLevel[strconv.Itoa(lvl)]; ok {

@@ -164,11 +164,12 @@ func (s *Server) handleDeleteProductList(w http.ResponseWriter, r *http.Request)
 // ---- items ----
 
 type listItemReq struct {
-	Name        string         `json:"name"`
-	Unit        string         `json:"unit"`
-	Section     string         `json:"section"`
-	QtyPerLevel models.JSONNum `json:"qtyPerLevel"`
-	Quantity    float64        `json:"quantity"`
+	Name           string         `json:"name"`
+	Unit           string         `json:"unit"`
+	Section        string         `json:"section"`
+	QtyPerLevel    models.JSONNum `json:"qtyPerLevel"`
+	AllowCustomQty *bool          `json:"allowCustomQty"`
+	Quantity       float64        `json:"quantity"`
 }
 
 func (s *Server) handleAddListItem(w http.ResponseWriter, r *http.Request) {
@@ -198,7 +199,8 @@ func (s *Server) handleAddListItem(w http.ResponseWriter, r *http.Request) {
 		Select("COALESCE(MAX(position),0)").Scan(&maxPos)
 	item := models.ProductListItem{
 		ListID: listID, Name: strings.TrimSpace(req.Name), Unit: req.Unit, Section: req.Section,
-		QtyPerLevel: req.QtyPerLevel, Quantity: req.Quantity, Position: maxPos + 1,
+		QtyPerLevel: req.QtyPerLevel, AllowCustomQty: req.AllowCustomQty != nil && *req.AllowCustomQty,
+		Quantity: req.Quantity, Position: maxPos + 1,
 	}
 	if err := s.DB.Create(&item).Error; err != nil {
 		writeError(w, http.StatusInternalServerError, "ajout impossible")
@@ -221,6 +223,9 @@ func (s *Server) handleUpdateListItem(w http.ResponseWriter, r *http.Request) {
 	updates := map[string]any{"name": req.Name, "unit": req.Unit, "section": req.Section, "quantity": req.Quantity}
 	if req.QtyPerLevel != nil {
 		updates["qty_per_level"] = req.QtyPerLevel
+	}
+	if req.AllowCustomQty != nil {
+		updates["allow_custom_qty"] = *req.AllowCustomQty
 	}
 	s.DB.Model(&models.ProductListItem{}).Where("id = ?", id).Updates(updates)
 	var item models.ProductListItem
