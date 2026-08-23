@@ -145,13 +145,16 @@ function VotedMatrix({ tab, event, isAdmin, onChange }: Props) {
                       <div className="mx-auto w-24">
                         {lvl === -1 ? (
                           <div className="flex items-center gap-1">
-                            <input
-                              type="number" step="0.1" disabled={!mine} autoFocus={mine}
-                              className="input h-7 w-full py-0 text-center text-xs"
-                              defaultValue={c?.customQty ?? ''}
-                              placeholder={t('matrix.custom')}
-                              onBlur={(e) => setLevel(art.id, -1, +e.target.value || 0)}
-                            />
+                            <div className="relative flex-1">
+                              <input
+                                type="number" step="0.1" disabled={!mine} autoFocus={mine}
+                                className="input h-7 w-full py-0 pr-10 text-center text-xs"
+                                defaultValue={c?.customQty ?? ''}
+                                placeholder={t('matrix.custom')}
+                                onBlur={(e) => setLevel(art.id, -1, +e.target.value || 0)}
+                              />
+                              <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted">{art.unit}/j</span>
+                            </div>
                             {mine && (
                               <button type="button" className="shrink-0 text-muted hover:text-fg" title={t('matrix.backToChoices')} onClick={() => setLevel(art.id, 0)}>
                                 <Undo2 size={13} />
