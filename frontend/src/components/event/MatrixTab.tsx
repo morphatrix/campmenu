@@ -205,13 +205,15 @@ function CustomQtyCell({
   return (
     // Same box, width and text size as the dropdown (input h-7 w-full text-xs)
     // so "4 pièce/j" reads exactly like "3 pièce/j" above/below it, and the
-    // undo icon sits in the same spot as the select's native chevron. The
-    // number field gets a small fixed width (not the HTML `size` attribute,
-    // which flexbox doesn't respect reliably) so it can't crowd out the unit.
+    // undo icon sits in the same spot as the select's native chevron. Width
+    // is set in `ch` via inline style — a real CSS dimension that tracks the
+    // typed length exactly, unlike the HTML size attribute (unreliable in
+    // flex) or any fixed Tailwind width (leaves a gap for short numbers).
     <div className="input relative flex h-7 w-full items-center gap-0.5 py-0 pl-2 pr-6 text-xs">
       <input
         type="number" step="0.1" disabled={!mine} autoFocus={mine}
-        className="w-5 shrink-0 grow-0 border-none bg-transparent p-0 text-left focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        style={{ width: `${Math.max(1, text.length)}ch` }}
+        className="shrink-0 grow-0 border-none bg-transparent p-0 text-left focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         value={text}
         placeholder={t('matrix.custom')}
         onFocus={() => setFocused(true)}
