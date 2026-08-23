@@ -112,6 +112,8 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
     }
     await api.post(`/product-lists/${list.id}/items`, body)
     setName('')
+    setChoices([1, 2, 3])
+    setAllowCustom(false)
     onChange()
   }
   async function remove(itemId: string) { await api.del(`/product-list-items/${itemId}`); onChange() }
@@ -209,15 +211,15 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
                       {voted ? (
                         <span className="flex flex-wrap items-center gap-1 text-xs text-muted">
                           {Object.keys(it.qtyPerLevel ?? {}).sort((a, b) => Number(a) - Number(b)).map((lvl) => (
-                            <span key={lvl} className="flex items-center">
+                            <span key={lvl} className="flex items-center gap-0.5 rounded-lg border border-border bg-surface py-0.5 pl-1.5 pr-1">
                               <input
-                                className="input h-7 w-12 py-0 text-center text-xs"
+                                className="w-9 border-none bg-transparent p-0 text-center text-xs focus:outline-none"
                                 type="number"
                                 step="0.1"
                                 value={it.qtyPerLevel?.[lvl] ?? 0}
                                 onChange={(e) => updateItem(it, { qtyPerLevel: { ...it.qtyPerLevel, [lvl]: +e.target.value } })}
                               />
-                              <button type="button" className="hover:text-danger" onClick={() => removeChoice(it, lvl)}><X size={11} /></button>
+                              <button type="button" className="hover:text-danger" title={t('common.delete')} onClick={() => removeChoice(it, lvl)}><X size={11} /></button>
                             </span>
                           ))}
                           <button type="button" className="text-muted hover:text-fg" onClick={() => addChoice(it)}><Plus size={12} /></button>
@@ -269,15 +271,15 @@ function ListItemsEditor({ list, onChange }: { list: ProductList; onChange: () =
         {voted ? (
           <div>
             <label className="label">{t('matrix.possibleChoices')}</label>
-            <div className="flex flex-wrap items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1.5">
               {choices.map((v, i) => (
-                <span key={i} className="flex items-center">
+                <span key={i} className="flex items-center gap-0.5 rounded-lg border border-border bg-surface py-0.5 pl-1.5 pr-1">
                   <input
-                    className="input w-14" type="number" step="0.1" value={v}
+                    className="w-12 border-none bg-transparent p-0 text-sm focus:outline-none" type="number" step="0.1" value={v}
                     onChange={(e) => setChoices((c) => c.map((x, idx) => (idx === i ? +e.target.value : x)))}
                   />
                   {choices.length > 1 && (
-                    <button type="button" className="ml-0.5 text-muted hover:text-danger" onClick={() => setChoices((c) => c.filter((_, idx) => idx !== i))}>
+                    <button type="button" className="text-muted hover:text-danger" title={t('common.delete')} onClick={() => setChoices((c) => c.filter((_, idx) => idx !== i))}>
                       <X size={12} />
                     </button>
                   )}

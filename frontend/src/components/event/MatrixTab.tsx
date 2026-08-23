@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Trash2, X, Wine, Save } from 'lucide-react'
+import { Plus, Trash2, X, Wine, Save, Undo2 } from 'lucide-react'
 import { api } from '../../lib/api'
 import IngredientInput from '../IngredientInput'
 import { useLive } from '../../context/LiveContext'
@@ -139,21 +139,33 @@ function VotedMatrix({ tab, event, isAdmin, onChange }: Props) {
                   const lvl = c?.level ?? 0
                   return (
                     <td key={p.id} className="p-1 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <select
-                          className={`rounded border border-border px-1 py-0.5 text-xs ${mine ? 'bg-card' : 'bg-surface text-muted'}`}
-                          value={lvl} disabled={!mine}
-                          onChange={(e) => { const v = +e.target.value; setLevel(art.id, v, v === -1 ? (c?.customQty ?? 0) : undefined) }}
-                        >
-                          {levelsFor(art).map((l) => <option key={l} value={l}>{levelLabel(t, art, l)}</option>)}
-                        </select>
-                        {lvl === -1 && (
-                          <input
-                            type="number" step="0.1" disabled={!mine}
-                            className="w-14 rounded border border-border px-1 py-0.5 text-xs"
-                            defaultValue={c?.customQty ?? 0}
-                            onBlur={(e) => setLevel(art.id, -1, +e.target.value)}
-                          />
+                      {/* Fixed width so every cell in the column lines up whether it
+                          shows the preset dropdown or the free-value input — the two
+                          never appear side by side, only one control per cell. */}
+                      <div className="mx-auto w-24">
+                        {lvl === -1 ? (
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number" step="0.1" disabled={!mine} autoFocus={mine}
+                              className="input h-7 w-full py-0 text-center text-xs"
+                              defaultValue={c?.customQty ?? ''}
+                              placeholder={t('matrix.custom')}
+                              onBlur={(e) => setLevel(art.id, -1, +e.target.value || 0)}
+                            />
+                            {mine && (
+                              <button type="button" className="shrink-0 text-muted hover:text-fg" title={t('matrix.backToChoices')} onClick={() => setLevel(art.id, 0)}>
+                                <Undo2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          <select
+                            className={`input h-7 w-full py-0 text-xs ${mine ? '' : 'text-muted'}`}
+                            value={lvl} disabled={!mine}
+                            onChange={(e) => { const v = +e.target.value; setLevel(art.id, v, v === -1 ? 0 : undefined) }}
+                          >
+                            {levelsFor(art).map((l) => <option key={l} value={l}>{levelLabel(t, art, l)}</option>)}
+                          </select>
                         )}
                       </div>
                     </td>
@@ -212,6 +224,8 @@ function AddVotedArticle({ tab, event, existing, onAdded }: { tab: EventTab; eve
     await api.post(`/tabs/${tab.id}/articles`, { name, unit, qtyPerLevel, allowCustomQty: allowCustom })
     if (tab.listId) await api.post(`/product-lists/${tab.listId}/items`, { name, unit, qtyPerLevel, allowCustomQty: allowCustom })
     setName('')
+    setChoices([1, 2, 3])
+    setAllowCustom(false)
     onAdded()
   }
 
@@ -239,15 +253,15 @@ function AddVotedArticle({ tab, event, existing, onAdded }: { tab: EventTab; eve
         <div><label className="label">unité</label><input className="input w-24" value={unit} onChange={(e) => setUnit(e.target.value)} /></div>
         <div>
           <label className="label">{t('matrix.possibleChoices')}</label>
-          <div className="flex flex-wrap items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1.5">
             {choices.map((v, i) => (
-              <span key={i} className="flex items-center">
+              <span key={i} className="flex items-center gap-0.5 rounded-lg border border-border bg-surface py-0.5 pl-1.5 pr-1">
                 <input
-                  className="input w-16" type="number" step="0.1" value={v}
+                  className="w-12 border-none bg-transparent p-0 text-sm focus:outline-none" type="number" step="0.1" value={v}
                   onChange={(e) => setChoices((c) => c.map((x, idx) => (idx === i ? +e.target.value : x)))}
                 />
                 {choices.length > 1 && (
-                  <button type="button" className="ml-0.5 text-muted hover:text-danger" onClick={() => setChoices((c) => c.filter((_, idx) => idx !== i))}>
+                  <button type="button" className="text-muted hover:text-danger" title={t('common.delete')} onClick={() => setChoices((c) => c.filter((_, idx) => idx !== i))}>
                     <X size={12} />
                   </button>
                 )}
