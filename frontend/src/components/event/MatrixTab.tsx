@@ -198,20 +198,21 @@ function CustomQtyCell({
   const { t } = useTranslation()
   const [focused, setFocused] = useState(false)
   return (
-    <div className="flex items-center gap-1">
-      <div className="input flex h-7 flex-1 items-center gap-1 px-2 py-0 text-xs">
-        <input
-          type="number" step="0.1" disabled={!mine} autoFocus={mine}
-          className="w-8 min-w-0 flex-1 border-none bg-transparent p-0 text-center focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-          defaultValue={value ?? ''}
-          placeholder={t('matrix.custom')}
-          onFocus={() => setFocused(true)}
-          onBlur={(e) => { setFocused(false); onSave(+e.target.value || 0) }}
-        />
-        {!focused && <span className="shrink-0 text-muted">{art.unit}/j</span>}
-      </div>
+    // Same box, width and text size as the dropdown (input h-7 w-full text-xs)
+    // so "4 pièce/j" reads exactly like "3 pièce/j" above/below it, and the
+    // undo icon sits in the same spot as the select's native chevron.
+    <div className="input relative flex h-7 w-full items-center gap-1 py-0 pl-2 pr-6 text-xs">
+      <input
+        type="number" step="0.1" disabled={!mine} autoFocus={mine}
+        className="w-6 shrink-0 border-none bg-transparent p-0 text-left focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        defaultValue={value ?? ''}
+        placeholder={t('matrix.custom')}
+        onFocus={() => setFocused(true)}
+        onBlur={(e) => { setFocused(false); onSave(+e.target.value || 0) }}
+      />
+      {!focused && <span className="truncate">{art.unit}/j</span>}
       {mine && (
-        <button type="button" className="shrink-0 text-muted hover:text-fg" title={t('matrix.backToChoices')} onClick={onBack}>
+        <button type="button" className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted hover:text-fg" title={t('matrix.backToChoices')} onClick={onBack}>
           <Undo2 size={13} />
         </button>
       )}
