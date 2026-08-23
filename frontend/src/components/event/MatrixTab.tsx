@@ -197,17 +197,26 @@ function CustomQtyCell({
 }) {
   const { t } = useTranslation()
   const [focused, setFocused] = useState(false)
+  const [text, setText] = useState(value != null ? String(value) : '')
+  // Only resync from the saved value while the user isn't actively editing,
+  // so a reload after saving doesn't clobber what they're typing.
+  useEffect(() => { if (!focused) setText(value != null ? String(value) : '') }, [value, focused])
+
   return (
     // Same box, width and text size as the dropdown (input h-7 w-full text-xs)
     // so "4 pièce/j" reads exactly like "3 pièce/j" above/below it, and the
-    // undo icon sits in the same spot as the select's native chevron.
-    <div className="input relative flex h-7 w-full items-center gap-1 py-0 pl-2 pr-6 text-xs">
+    // undo icon sits in the same spot as the select's native chevron. The
+    // number field's `size` tracks the typed length so it hugs the digits
+    // instead of reserving a fixed width that leaves a gap before the unit.
+    <div className="input relative flex h-7 w-full items-center gap-0.5 py-0 pl-2 pr-6 text-xs">
       <input
         type="number" step="0.1" disabled={!mine} autoFocus={mine}
-        className="w-6 shrink-0 border-none bg-transparent p-0 text-left focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-        defaultValue={value ?? ''}
+        size={Math.max(1, text.length)}
+        className="shrink-0 border-none bg-transparent p-0 text-left focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        value={text}
         placeholder={t('matrix.custom')}
         onFocus={() => setFocused(true)}
+        onChange={(e) => setText(e.target.value)}
         onBlur={(e) => { setFocused(false); onSave(+e.target.value || 0) }}
       />
       {!focused && <span className="truncate">{art.unit}/j</span>}
