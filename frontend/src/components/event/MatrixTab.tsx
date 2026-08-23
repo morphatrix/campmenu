@@ -206,20 +206,19 @@ function CustomQtyCell({
     // Same box, width and text size as the dropdown (input h-7 w-full text-xs)
     // so "4 pièce/j" reads exactly like "3 pièce/j" above/below it, and the
     // undo icon sits in the same spot as the select's native chevron. The
-    // number field's `size` tracks the typed length so it hugs the digits
-    // instead of reserving a fixed width that leaves a gap before the unit.
+    // number field gets a small fixed width (not the HTML `size` attribute,
+    // which flexbox doesn't respect reliably) so it can't crowd out the unit.
     <div className="input relative flex h-7 w-full items-center gap-0.5 py-0 pl-2 pr-6 text-xs">
       <input
         type="number" step="0.1" disabled={!mine} autoFocus={mine}
-        size={Math.max(1, text.length)}
-        className="shrink-0 border-none bg-transparent p-0 text-left focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="w-5 shrink-0 grow-0 border-none bg-transparent p-0 text-left focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         value={text}
         placeholder={t('matrix.custom')}
         onFocus={() => setFocused(true)}
         onChange={(e) => setText(e.target.value)}
         onBlur={(e) => { setFocused(false); onSave(+e.target.value || 0) }}
       />
-      {!focused && <span className="truncate">{art.unit}/j</span>}
+      {!focused && <span className="shrink-0 truncate">{art.unit}/j</span>}
       {mine && (
         <button type="button" className="absolute right-1.5 top-1/2 -translate-y-1/2 text-muted hover:text-fg" title={t('matrix.backToChoices')} onClick={onBack}>
           <Undo2 size={13} />
