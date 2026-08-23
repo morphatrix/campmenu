@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Store } from 'lucide-react'
+import { Search, Store } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useLive } from '../../context/LiveContext'
 import { displayName } from '../../lib/types'
@@ -9,11 +9,14 @@ import type { Event, EventParticipant, ShoppingLine, SiteConfig } from '../../li
 const STANDARD = ['Drive', 'Station']
 
 type ShoppingPatch = Partial<ShoppingLine> & { clearBroughtBy?: boolean }
+type SortMode = 'category' | 'day' | 'alpha' | 'list'
 
 export default function ShoppingTab({ event }: { event: Event }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [lines, setLines] = useState<ShoppingLine[]>([])
   const [byAisle, setByAisle] = useState(false)
+  const [sortMode, setSortMode] = useState<SortMode>('category')
+  const [search, setSearch] = useState('')
   const [aiEnabled, setAiEnabled] = useState(false)
   const participants = (event.participants ?? []).filter((p) => p.user)
 
@@ -39,35 +42,90 @@ export default function ShoppingTab({ event }: { event: Event }) {
     })
   }
 
-  // Group by section (default) or by supermarket aisle (toggle). The empty group
-  // comes first in section mode.
+  function dayLabel(dayIndex: number): string {
+    const d = new Date(event.startDate)
+    d.setDate(d.getDate() + dayIndex)
+    const weekday = d.toLocaleDateString(i18n.language, { weekday: 'long' })
+    const date = d.toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })
+    return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${date}`
+  }
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return q ? lines.filter((l) => l.name.toLowerCase().includes(q)) : lines
+  }, [lines, search])
+
+  // Grouping depends on the chosen sort mode: by section/aisle (default), by
+  // event day, by source list, or a single flat alphabetical list. Lines that
+  // span several days/lists appear in each relevant group (same object, so
+  // edits stay in sync); lines with no day/list info fall into a catch-all.
   const groups = useMemo(() => {
+    if (sortMode === 'alpha') {
+      const sorted = [...filtered].sort((a, b) => a.name.localeCompare(b.name))
+      return sorted.length > 0 ? [['', sorted] as [string, ShoppingLine[]]] : []
+    }
+    if (sortMode === 'day') {
+      const map = new Map<string, ShoppingLine[]>()
+      for (const l of filtered) {
+        for (const key of l.days && l.days.length > 0 ? l.days.map(String) : ['other']) {
+          if (!map.has(key)) map.set(key, [])
+          map.get(key)!.push(l)
+        }
+      }
+      return [...map.entries()]
+        .sort((a, b) => (a[0] === 'other' ? 1 : b[0] === 'other' ? -1 : Number(a[0]) - Number(b[0])))
+        .map(([key, items]) => [key === 'other' ? t('shopping.otherDay') : dayLabel(Number(key)), items] as [string, ShoppingLine[]])
+    }
+    if (sortMode === 'list') {
+      const map = new Map<string, ShoppingLine[]>()
+      for (const l of filtered) {
+        for (const name of l.lists && l.lists.length > 0 ? l.lists : [t('shopping.general')]) {
+          if (!map.has(name)) map.set(name, [])
+          map.get(name)!.push(l)
+        }
+      }
+      return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+    }
     const map = new Map<string, ShoppingLine[]>()
-    for (const l of lines) {
+    for (const l of filtered) {
       const key = byAisle ? (l.aisle || t('shopping.otherAisle')) : (l.section || '')
       if (!map.has(key)) map.set(key, [])
       map.get(key)!.push(l)
     }
     return [...map.entries()].sort((a, b) => (a[0] === '' ? -1 : b[0] === '' ? 1 : a[0].localeCompare(b[0])))
-  }, [lines, byAisle, t])
+  }, [filtered, sortMode, byAisle, t, i18n.language, event.startDate])
 
   if (lines.length === 0) return <p className="text-muted">{t('shopping.empty')}</p>
 
   return (
     <div className="space-y-6">
-      {aiEnabled && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => setByAisle((v) => !v)}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${byAisle ? 'border-brand bg-brand text-brand-fg' : 'border-border bg-surface text-muted'}`}
-          >
-            <Store size={13} /> {t('shopping.byAisle')}
-          </button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="relative w-full max-w-xs">
+          <Search size={15} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+          <input className="input h-9 pl-8" placeholder={t('shopping.search')} value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
-      )}
-      {groups.map(([section, items]) => (
-        <section key={section || '__general__'}>
-          <h3 className="mb-2 font-semibold">{section || t('shopping.general')}</h3>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-muted">{t('shopping.sortBy')}</label>
+          <select className="input h-9 py-1 text-sm" value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+            <option value="category">{t('shopping.sortCategory')}</option>
+            <option value="day">{t('shopping.sortDay')}</option>
+            <option value="alpha">{t('shopping.sortAlpha')}</option>
+            <option value="list">{t('shopping.sortList')}</option>
+          </select>
+          {aiEnabled && sortMode === 'category' && (
+            <button
+              onClick={() => setByAisle((v) => !v)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${byAisle ? 'border-brand bg-brand text-brand-fg' : 'border-border bg-surface text-muted'}`}
+            >
+              <Store size={13} /> {t('shopping.byAisle')}
+            </button>
+          )}
+        </div>
+      </div>
+      {groups.length === 0 && <p className="text-muted">{t('shopping.noResults')}</p>}
+      {groups.map(([label, items]) => (
+        <section key={label || '__general__'}>
+          {sortMode !== 'alpha' && <h3 className="mb-2 font-semibold">{label || t('shopping.general')}</h3>}
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] border-collapse text-sm">
               <thead>
@@ -82,7 +140,7 @@ export default function ShoppingTab({ event }: { event: Event }) {
               </thead>
               <tbody>
                 {items.map((line, i) => (
-                  <tr key={`${section}|${line.name}|${line.unit}|${i}`} className={`border-t border-border ${line.bought ? 'opacity-50' : ''}`}>
+                  <tr key={`${label}|${line.name}|${line.unit}|${i}`} className={`border-t border-border ${line.bought ? 'opacity-50' : ''}`}>
                     <td className="p-2 text-center">
                       <input type="checkbox" checked={line.bought} onChange={(e) => update(line, { boughtQuantity: e.target.checked ? line.quantity : 0 })} title={t('shopping.bought')} />
                     </td>

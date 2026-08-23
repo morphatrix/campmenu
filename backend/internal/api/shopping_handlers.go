@@ -80,9 +80,9 @@ func normalizeUnit(name, unit string, qty float64) (string, float64) {
 
 // shoppingLine is one consolidated row of the shopping list.
 type shoppingLine struct {
-	Section      string     `json:"section"`
-	Name         string     `json:"name"`
-	Unit         string     `json:"unit"`
+	Section        string     `json:"section"`
+	Name           string     `json:"name"`
+	Unit           string     `json:"unit"`
 	Quantity       float64    `json:"quantity"`
 	IngredientID   *uuid.UUID `json:"ingredientId"`
 	Source         string     `json:"source"`
@@ -90,11 +90,21 @@ type shoppingLine struct {
 	Bought         bool       `json:"bought"`         // derived: bought quantity covers the total
 	BoughtQuantity float64    `json:"boughtQuantity"` // how much is already bought
 	BroughtBy      *uuid.UUID `json:"broughtBy"`
-	Aisle          string     `json:"aisle"`  // supermarket section (AI-classified, may be empty)
-	Lists          []string   `json:"lists"`  // source lists/tabs (menu, tab names) feeding this line
+	Aisle          string     `json:"aisle"` // supermarket section (AI-classified, may be empty)
+	Lists          []string   `json:"lists"` // source lists/tabs (menu, tab names) feeding this line
+	Days           []int      `json:"days"`  // 0-based day indices this line is needed on (Menus only; empty = spans the whole event)
 }
 
 func appendUnique(s []string, v string) []string {
+	for _, x := range s {
+		if x == v {
+			return s
+		}
+	}
+	return append(s, v)
+}
+
+func appendUniqueInt(s []int, v int) []int {
 	for _, x := range s {
 		if x == v {
 			return s
@@ -190,6 +200,7 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 
 	agg := map[string]*shoppingLine{}
 	curSource := "" // name of the list/tab currently feeding `add` (for the "by list" filter)
+	var curDay *int // day index currently feeding `add` (Menus only, for the "by day" filter)
 	add := func(section, name, unit string, ingredientID *uuid.UUID, qty float64) {
 		if strings.TrimSpace(name) == "" || qty == 0 {
 			return
@@ -209,6 +220,9 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 		}
 		if curSource != "" {
 			l.Lists = appendUnique(l.Lists, curSource)
+		}
+		if curDay != nil {
+			l.Days = appendUniqueInt(l.Days, *curDay)
 		}
 	}
 
@@ -241,6 +255,8 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 		Where("event_id = ?", eventID).Find(&meals)
 	curSource = "Menus"
 	for _, meal := range meals {
+		day := meal.DayIndex
+		curDay = &day
 		base := effective
 		if meal.ParticipantCount != nil {
 			base = *meal.ParticipantCount
@@ -256,6 +272,7 @@ func (s *Server) computeShoppingList(eventID uuid.UUID) []shoppingLine {
 			add("", raw.Name, raw.Unit, raw.IngredientID, raw.Quantity)
 		}
 	}
+	curDay = nil
 
 	// 2. Tabs: voted (participant consumption × days) or non-voted (organizer
 	//    totals), plus attached recipes (cocktails), grouped by article section.

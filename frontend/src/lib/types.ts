@@ -234,6 +234,7 @@ export interface ShoppingLine {
   broughtBy?: string | null
   aisle?: string
   lists?: string[]
+  days?: number[]
 }
 
 export interface TabConsumption {

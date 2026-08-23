@@ -127,8 +127,10 @@ function EventPicker({ onPick, onLogout }: { onPick: (id: string) => void; onLog
 
 type ShoppingPatch = Partial<ShoppingLine> & { clearBroughtBy?: boolean }
 
+type SortMode = 'category' | 'day' | 'alpha' | 'list'
+
 function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack: () => void; onLogout: () => void }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [event, setEvent] = useState<Event | null>(null)
   const [lines, setLines] = useState<ShoppingLine[]>([])
   const [tab, setTab] = useState<'courses' | 'lists' | 'participants' | 'recipes'>('courses')
@@ -138,6 +140,8 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
   const [broughtBy, setBroughtBy] = useState('') // '' = all, 'none' = unassigned, else userId
   const [listFilter, setListFilter] = useState('') // '' = all, else a source list name
   const [byAisle, setByAisle] = useState(false)
+  const [sortMode, setSortMode] = useState<SortMode>('category')
+  const [search, setSearch] = useState('')
   const [aiEnabled, setAiEnabled] = useState(false)
   useEffect(() => { api.get<{ aiEnabled?: boolean }>('/config').then((c) => setAiEnabled(!!c.aiEnabled)).catch(() => {}) }, [])
 
@@ -171,12 +175,22 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
     [lines],
   )
 
+  function dayLabel(dayIndex: number): string {
+    if (!event) return String(dayIndex)
+    const d = new Date(event.startDate)
+    d.setDate(d.getDate() + dayIndex)
+    const weekday = d.toLocaleDateString(i18n.language, { weekday: 'long' })
+    const date = d.toLocaleDateString(i18n.language, { day: 'numeric', month: 'short' })
+    return `${weekday.charAt(0).toUpperCase()}${weekday.slice(1)} ${date}`
+  }
+
   const filtered = lines.filter((l) => {
     if (hideBought && l.bought) return false
     if (hiddenSections.has(l.section || '')) return false
     if (broughtBy === 'none' && l.broughtBy) return false
     if (broughtBy && broughtBy !== 'none' && l.broughtBy !== broughtBy) return false
     if (listFilter && !(l.lists || []).includes(listFilter)) return false
+    if (search.trim() && !l.name.toLowerCase().includes(search.trim().toLowerCase())) return false
     return true
   })
 
@@ -186,7 +200,37 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
     return [...set].sort((a, b) => a.localeCompare(b))
   }, [lines])
 
+  // Grouping depends on the chosen sort mode: by section/aisle (default), by
+  // event day, by source list, or a single flat alphabetical list. Lines that
+  // span several days/lists appear in each relevant group (same object, so
+  // edits stay in sync); lines with no day/list info fall into a catch-all.
   const groups = useMemo(() => {
+    if (sortMode === 'alpha') {
+      const sorted = [...filtered].sort((a, b) => a.name.localeCompare(b.name))
+      return sorted.length > 0 ? [['', sorted] as [string, ShoppingLine[]]] : []
+    }
+    if (sortMode === 'day') {
+      const map = new Map<string, ShoppingLine[]>()
+      for (const l of filtered) {
+        for (const key of l.days && l.days.length > 0 ? l.days.map(String) : ['other']) {
+          if (!map.has(key)) map.set(key, [])
+          map.get(key)!.push(l)
+        }
+      }
+      return [...map.entries()]
+        .sort((a, b) => (a[0] === 'other' ? 1 : b[0] === 'other' ? -1 : Number(a[0]) - Number(b[0])))
+        .map(([key, items]) => [key === 'other' ? t('shopping.otherDay') : dayLabel(Number(key)), items] as [string, ShoppingLine[]])
+    }
+    if (sortMode === 'list') {
+      const map = new Map<string, ShoppingLine[]>()
+      for (const l of filtered) {
+        for (const name of l.lists && l.lists.length > 0 ? l.lists : [t('shopping.general')]) {
+          if (!map.has(name)) map.set(name, [])
+          map.get(name)!.push(l)
+        }
+      }
+      return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+    }
     const map = new Map<string, ShoppingLine[]>()
     for (const l of filtered) {
       const key = byAisle ? (l.aisle || t('shopping.otherAisle')) : (l.section || '')
@@ -194,7 +238,7 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
       map.get(key)!.push(l)
     }
     return [...map.entries()].sort((a, b) => (a[0] === '' ? -1 : b[0] === '' ? 1 : a[0].localeCompare(b[0])))
-  }, [filtered, byAisle, t])
+  }, [filtered, sortMode, byAisle, t, i18n.language, event?.startDate])
 
   const boughtCount = lines.filter((l) => l.bought).length
   const activeFilters = (hideBought ? 1 : 0) + hiddenSections.size + (broughtBy ? 1 : 0) + (listFilter ? 1 : 0)
@@ -221,6 +265,11 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
 
         {tab === 'courses' && (
         <>
+        {/* Search */}
+        <div className="relative px-3 pb-2">
+          <Search size={15} className="pointer-events-none absolute left-6 top-1/2 -translate-y-1/2 text-muted" />
+          <input className="input h-9 pl-8 text-sm" placeholder={t('shopping.search')} value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
         {/* Quick filters + progress */}
         <div className="flex items-center gap-2 px-3 pb-2">
           <button
@@ -235,7 +284,7 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
           >
             <SlidersHorizontal size={13} /> {t('mobile.filters')}{activeFilters ? ` (${activeFilters})` : ''}
           </button>
-          {aiEnabled && (
+          {aiEnabled && sortMode === 'category' && (
             <button
               onClick={() => setByAisle((v) => !v)}
               className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-medium ${byAisle ? 'border-brand bg-brand text-brand-fg' : 'border-border bg-surface text-muted'}`}
@@ -244,6 +293,15 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
             </button>
           )}
           <span className="ml-auto text-xs text-muted">{t('mobile.bought', { n: boughtCount, total: lines.length })}</span>
+        </div>
+        <div className="flex items-center gap-2 px-3 pb-2">
+          <span className="text-xs text-muted">{t('shopping.sortBy')}</span>
+          <select className="input h-8 flex-1 py-1 text-sm" value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)}>
+            <option value="category">{t('shopping.sortCategory')}</option>
+            <option value="day">{t('shopping.sortDay')}</option>
+            <option value="alpha">{t('shopping.sortAlpha')}</option>
+            <option value="list">{t('shopping.sortList')}</option>
+          </select>
         </div>
         {lines.length > 0 && (
           <div className="h-1 w-full bg-surface">
@@ -304,15 +362,15 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
         ) : tab === 'participants' ? (
           <MobileParticipants participants={participants} />
         ) : filtered.length === 0 ? (
-          <p className="text-center text-muted">{lines.length === 0 ? t('shopping.empty') : '—'}</p>
+          <p className="text-center text-muted">{lines.length === 0 ? t('shopping.empty') : t('shopping.noResults')}</p>
         ) : (
           <div className="space-y-5">
-            {groups.map(([section, items]) => (
-              <section key={section || '__general__'}>
-                <h3 className="mb-2 px-1 text-sm font-semibold text-muted">{section || t('shopping.general')}</h3>
+            {groups.map(([label, items]) => (
+              <section key={label || '__general__'}>
+                {sortMode !== 'alpha' && <h3 className="mb-2 px-1 text-sm font-semibold text-muted">{label || t('shopping.general')}</h3>}
                 <div className="space-y-2">
                   {items.map((line, i) => (
-                    <MobileItem key={`${section}|${line.name}|${line.unit}|${i}`} line={line} participants={participants} onUpdate={(p) => update(line, p)} />
+                    <MobileItem key={`${label}|${line.name}|${line.unit}|${i}`} line={line} participants={participants} onUpdate={(p) => update(line, p)} />
                   ))}
                 </div>
               </section>
