@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import { useLive } from '../context/LiveContext'
 import { displayName } from '../lib/types'
 import type { Event, EventParticipant, EventTab, Recipe, ShoppingLine, TabArticle, User } from '../lib/types'
+import { daySegments, isDaySegmentBought, remainingQty, toggleDaySegment } from '../lib/shopping'
 import Avatar from '../components/Avatar'
 import UserInfoModal from '../components/UserInfoModal'
 import IbanRequestsBell from '../components/IbanRequestsBell'
@@ -128,7 +129,7 @@ function EventPicker({ onPick, onLogout }: { onPick: (id: string) => void; onLog
 type ShoppingPatch = Partial<ShoppingLine> & { clearBroughtBy?: boolean }
 
 type SortMode = 'category' | 'day' | 'alpha' | 'list'
-type GroupItem = { line: ShoppingLine; qty: number }
+type GroupItem = { line: ShoppingLine; qty: number; dayKey?: string }
 
 function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack: () => void; onLogout: () => void }) {
   const { t, i18n } = useTranslation()
@@ -209,18 +210,21 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
   // not the line's overall total — the checkbox/update still target the
   // full line since "bought" is a single decision for the whole ingredient.
   const groups = useMemo(() => {
+    // Outside day mode a line is a single row: show what's left to buy once
+    // any partial purchase (made from the day view) is deducted.
+    const dispQty = (l: ShoppingLine) => (l.boughtQuantity > 0 ? remainingQty(l) : l.quantity)
     if (sortMode === 'alpha') {
       const sorted = [...filtered].sort((a, b) => a.name.localeCompare(b.name))
       return sorted.length > 0
-        ? [['', sorted.map((l) => ({ line: l, qty: l.quantity }))] as [string, GroupItem[]]]
+        ? [['', sorted.map((l) => ({ line: l, qty: dispQty(l) }))] as [string, GroupItem[]]]
         : []
     }
     if (sortMode === 'day') {
       const map = new Map<string, GroupItem[]>()
       for (const l of filtered) {
-        for (const key of l.days && l.days.length > 0 ? l.days.map(String) : ['other']) {
-          if (!map.has(key)) map.set(key, [])
-          map.get(key)!.push({ line: l, qty: key === 'other' ? l.quantity : (l.dayQuantities?.[key] ?? l.quantity) })
+        for (const seg of daySegments(l)) {
+          if (!map.has(seg.key)) map.set(seg.key, [])
+          map.get(seg.key)!.push({ line: l, qty: seg.qty, dayKey: seg.key })
         }
       }
       return [...map.entries()]
@@ -232,7 +236,7 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
       for (const l of filtered) {
         for (const name of l.lists && l.lists.length > 0 ? l.lists : [t('shopping.general')]) {
           if (!map.has(name)) map.set(name, [])
-          map.get(name)!.push({ line: l, qty: l.quantity })
+          map.get(name)!.push({ line: l, qty: dispQty(l) })
         }
       }
       return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0]))
@@ -241,7 +245,7 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
     for (const l of filtered) {
       const key = byAisle ? (l.aisle || t('shopping.otherAisle')) : (l.section || '')
       if (!map.has(key)) map.set(key, [])
-      map.get(key)!.push({ line: l, qty: l.quantity })
+      map.get(key)!.push({ line: l, qty: dispQty(l) })
     }
     return [...map.entries()].sort((a, b) => (a[0] === '' ? -1 : b[0] === '' ? 1 : a[0].localeCompare(b[0])))
   }, [filtered, sortMode, byAisle, t, i18n.language, event?.startDate])
@@ -375,8 +379,8 @@ function MobileShopping({ eventId, onBack, onLogout }: { eventId: string; onBack
               <section key={label || '__general__'}>
                 {sortMode !== 'alpha' && <h3 className="mb-2 px-1 text-sm font-semibold text-muted">{label || t('shopping.general')}</h3>}
                 <div className="space-y-2">
-                  {items.map(({ line, qty }, i) => (
-                    <MobileItem key={`${label}|${line.name}|${line.unit}|${i}`} line={line} qty={qty} hideRemaining={sortMode === 'day'} participants={participants} onUpdate={(p) => update(line, p)} />
+                  {items.map(({ line, qty, dayKey }, i) => (
+                    <MobileItem key={`${label}|${line.name}|${line.unit}|${i}`} line={line} qty={qty} dayKey={dayKey} participants={participants} onUpdate={(p) => update(line, p)} />
                   ))}
                 </div>
               </section>
@@ -685,7 +689,7 @@ function MobileRecipeView({ recipe, onBack }: { recipe: Recipe; onBack: () => vo
   )
 }
 
-function MobileItem({ line, qty, hideRemaining, participants, onUpdate }: { line: ShoppingLine; qty?: number; hideRemaining?: boolean; participants: EventParticipant[]; onUpdate: (p: ShoppingPatch) => void }) {
+function MobileItem({ line, qty, dayKey, participants, onUpdate }: { line: ShoppingLine; qty?: number; dayKey?: string; participants: EventParticipant[]; onUpdate: (p: ShoppingPatch) => void }) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
 
@@ -709,15 +713,23 @@ function MobileItem({ line, qty, hideRemaining, participants, onUpdate }: { line
     ? t('shopping.broughtByName', { name: displayName(participants.find((p) => p.userId === line.broughtBy)?.user) })
     : line.source
 
+  // Day mode: a single day's checkbox only covers that day's slice of the
+  // shared boughtQuantity pool (FIFO by day), so checking Wednesday doesn't
+  // also check Thursday. Outside day mode, checking marks the whole line.
+  const rowBought = dayKey ? isDaySegmentBought(line, dayKey) : line.bought
+  function onCheck(checked: boolean) {
+    onUpdate({ boughtQuantity: dayKey ? toggleDaySegment(line, dayKey, checked) : (checked ? line.quantity : 0) })
+  }
+
   return (
-    <div className={`card p-3 ${line.bought ? 'opacity-60' : ''}`}>
+    <div className={`card p-3 ${rowBought ? 'opacity-60' : ''}`}>
       <div className="flex items-center gap-3">
-        <input type="checkbox" className="h-6 w-6 shrink-0 accent-brand" checked={line.bought} onChange={(e) => onUpdate({ boughtQuantity: e.target.checked ? line.quantity : 0 })} />
+        <input type="checkbox" className="h-6 w-6 shrink-0 accent-brand" checked={rowBought} onChange={(e) => onCheck(e.target.checked)} />
         <button className="min-w-0 flex-1 text-left" onClick={() => setOpen((v) => !v)}>
-          <span className={`block font-medium ${line.bought ? 'line-through' : ''}`}>{line.name}</span>
+          <span className={`block font-medium ${rowBought ? 'line-through' : ''}`}>{line.name}</span>
           <span className="text-xs text-muted">{qty ?? line.quantity} {line.unit}{supplyLabel ? ` · ${supplyLabel}` : ''}{line.observation ? ` · ${line.observation}` : ''}</span>
-          {!hideRemaining && line.boughtQuantity > 0 && line.boughtQuantity < line.quantity && (
-            <span className="block text-xs text-accent">{t('shopping.remaining', { n: Math.round((line.quantity - line.boughtQuantity) * 100) / 100, unit: line.unit })}</span>
+          {!dayKey && line.boughtQuantity > 0 && !line.bought && (
+            <span className="block text-xs text-accent">{t('shopping.outOf', { n: line.quantity, unit: line.unit })}</span>
           )}
         </button>
         <ChevronRight size={18} className={`shrink-0 text-muted transition ${open ? 'rotate-90' : ''}`} onClick={() => setOpen((v) => !v)} />

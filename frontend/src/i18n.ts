@@ -89,9 +89,10 @@ const fr = {
       title: 'Liste de courses', ingredient: 'Ingrédient', quantity: 'Quantité', source: 'Source',
       observation: 'Observation', bought: 'Pris', broughtBy: 'Ramené par', empty: 'Rien à acheter pour le moment.',
       supply: 'Approvisionnement', broughtByName: 'Ramené par {{name}}', other: 'Autre…', otherPlaceholder: 'Préciser…',
-      general: 'Général', remaining: 'reste {{n}} {{unit}}', byAisle: 'Par rayon', otherAisle: 'Autres',
+      general: 'Général', byAisle: 'Par rayon', otherAisle: 'Autres',
       sortBy: 'Trier par', sortCategory: 'Catégorie', sortDay: 'Jour', sortAlpha: 'Alphabétique', sortList: 'Liste',
       otherDay: 'Toute la durée', search: 'Rechercher un article…', noResults: 'Aucun article ne correspond.',
+      outOf: '(sur {{n}} {{unit}})',
     },
     recipes: {
       title: 'Recettes', create: 'Nouvelle recette', name: 'Nom', basePersons: 'Pour (pers)',
@@ -278,9 +279,10 @@ const en = {
       title: 'Shopping list', ingredient: 'Ingredient', quantity: 'Quantity', source: 'Source',
       observation: 'Note', bought: 'Got it', broughtBy: 'Brought by', empty: 'Nothing to buy yet.',
       supply: 'Provisioning', broughtByName: 'Brought by {{name}}', other: 'Other…', otherPlaceholder: 'Specify…',
-      general: 'General', remaining: '{{n}} {{unit}} left', byAisle: 'By aisle', otherAisle: 'Other',
+      general: 'General', byAisle: 'By aisle', otherAisle: 'Other',
       sortBy: 'Sort by', sortCategory: 'Category', sortDay: 'Day', sortAlpha: 'Alphabetical', sortList: 'List',
       otherDay: 'Whole trip', search: 'Search an item…', noResults: 'No item matches.',
+      outOf: '(out of {{n}} {{unit}})',
     },
     recipes: {
       title: 'Recipes', create: 'New recipe', name: 'Name', basePersons: 'For (ppl)',
