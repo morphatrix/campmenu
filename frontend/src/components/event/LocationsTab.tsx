@@ -88,7 +88,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
         <p className="text-muted">{t('locations.empty')}</p>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {locations.map((loc) => {
+          {locations.map((loc, idx) => {
             const canManage = isAdmin || loc.createdBy === user?.id
             const myRank = rankOf(loc.id)
             return (
@@ -96,6 +96,9 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                 {loc.images.length > 0 && (
                   <button type="button" onClick={() => setGallery(loc)} className="relative block w-full">
                     <img src={resolveAsset(loc.images[0])} alt="" className="aspect-[4/3] w-full object-cover" />
+                    <span className="absolute left-2 top-2 inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-card/75 px-2 text-xs font-bold backdrop-blur">
+                      {idx + 1}
+                    </span>
                     <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 rounded-full bg-card/75 px-2.5 py-1 text-xs font-medium backdrop-blur">
                       <Images size={13} /> {loc.images.length}
                     </span>
@@ -105,7 +108,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                   <div className="mb-2 flex items-start justify-between gap-2">
                     <h3 className="text-lg font-semibold">
                       {loc.isWinner && <Trophy size={16} className="mr-1 inline text-success" />}
-                      {loc.title}
+                      {loc.images.length === 0 && `${idx + 1} - `}{loc.title}
                     </h3>
                     <span className="chip text-brand">{loc.score} pts</span>
                   </div>
