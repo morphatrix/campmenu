@@ -212,6 +212,8 @@ type LocationExport struct {
 	Description string   `json:"description"`
 	Observation string   `json:"observation"`
 	Amenities   []string `json:"amenities"`
+	Pros        []string `json:"pros"`
+	Cons        []string `json:"cons"`
 	Images      []string `json:"images"`
 	IsWinner    bool     `json:"isWinner"`
 }
@@ -490,7 +492,8 @@ func (s *Server) exportEvent(idStr string) (EventExport, error) {
 			Title: loc.Title, Address: loc.Address, WebsiteURL: loc.WebsiteURL, MapsURL: loc.MapsURL,
 			Beds: loc.Beds, SingleBeds: loc.SingleBeds, DoubleBeds: loc.DoubleBeds, Toilets: loc.Toilets,
 			Price: loc.Price, Phone: loc.Phone, UsefulInfo: loc.UsefulInfo, Description: loc.Description,
-			Observation: loc.Observation, Amenities: loc.Amenities, Images: loc.Images, IsWinner: loc.IsWinner,
+			Observation: loc.Observation, Amenities: loc.Amenities, Pros: loc.Pros, Cons: loc.Cons,
+			Images: loc.Images, IsWinner: loc.IsWinner,
 		})
 	}
 
@@ -965,7 +968,7 @@ func upsertEvent(tx *gorm.DB, ev EventExport, adminID uuid.UUID) ([]string, erro
 			EventID: event.ID, CreatedBy: adminID, Title: l.Title, Address: l.Address, WebsiteURL: l.WebsiteURL,
 			MapsURL: l.MapsURL, Beds: l.Beds, SingleBeds: l.SingleBeds, DoubleBeds: l.DoubleBeds, Toilets: l.Toilets,
 			Price: l.Price, Phone: l.Phone, UsefulInfo: l.UsefulInfo, Description: l.Description, Observation: l.Observation,
-			Amenities: l.Amenities, Images: l.Images, IsWinner: l.IsWinner,
+			Amenities: l.Amenities, Pros: l.Pros, Cons: l.Cons, Images: l.Images, IsWinner: l.IsWinner,
 		}
 		if err := tx.Create(&loc).Error; err != nil {
 			return nil, err

@@ -145,6 +145,8 @@ export interface Location {
   description: string
   observation: string
   amenities: string[]
+  pros: string[]
+  cons: string[]
   images: string[]
   isWinner: boolean
   score: number

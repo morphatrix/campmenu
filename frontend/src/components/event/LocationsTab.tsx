@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BedDouble, Bath, ChevronLeft, ChevronRight, Euro, Images, MapPin, ExternalLink, Loader2, Pencil, Plus, Sparkles, Star, Trash2, Trophy, Phone, Vote } from 'lucide-react'
+import { BedDouble, Bath, ChevronLeft, ChevronRight, Euro, Images, MapPin, ExternalLink, Loader2, Pencil, Plus, Sparkles, Star, ThumbsDown, ThumbsUp, Trash2, Trophy, Phone, Vote, X } from 'lucide-react'
 import { api, resolveAsset } from '../../lib/api'
 import { useLive } from '../../context/LiveContext'
 import { useAuth } from '../../context/AuthContext'
@@ -139,6 +139,29 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                     </div>
                   )}
 
+                  {(loc.pros.length > 0 || loc.cons.length > 0) && (
+                    <div className="mb-2 grid gap-2 sm:grid-cols-2">
+                      {loc.pros.length > 0 && (
+                        <ul className="space-y-0.5">
+                          {loc.pros.map((p, i) => (
+                            <li key={i} className="flex items-start gap-1.5 text-sm">
+                              <ThumbsUp size={13} className="mt-0.5 shrink-0 text-blue-500" /> {p}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {loc.cons.length > 0 && (
+                        <ul className="space-y-0.5">
+                          {loc.cons.map((c, i) => (
+                            <li key={i} className="flex items-start gap-1.5 text-sm">
+                              <ThumbsDown size={13} className="mt-0.5 shrink-0 text-danger" /> {c}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+
                   {loc.voters && loc.voters.length > 0 && (
                     <div className="mb-2 flex flex-wrap items-center gap-1.5">
                       <span className="inline-flex items-center gap-1 text-xs text-muted">
@@ -269,6 +292,10 @@ function LocationForm({
     observation: initial?.observation ?? '',
   }))
   const [amenities, setAmenities] = useState<string[]>(initial?.amenities ?? [])
+  const [pros, setPros] = useState<string[]>(initial?.pros ?? [])
+  const [cons, setCons] = useState<string[]>(initial?.cons ?? [])
+  const [newPro, setNewPro] = useState('')
+  const [newCon, setNewCon] = useState('')
   const [images, setImages] = useState<string[]>(initial?.images?.length ? initial.images : [''])
   const [customAmenity, setCustomAmenity] = useState('')
 
@@ -341,7 +368,7 @@ function LocationForm({
 
   async function save() {
     if (!f.title.trim()) return
-    const body = { ...f, amenities, images: images.filter((u) => u.trim()) }
+    const body = { ...f, amenities, pros, cons, images: images.filter((u) => u.trim()) }
     if (initial) await api.patch(`/locations/${initial.id}`, body)
     else await api.post(`/events/${eventId}/locations`, body)
     onSaved()
@@ -428,6 +455,47 @@ function LocationForm({
             <button type="button" className="btn-ghost" onClick={() => { if (customAmenity.trim()) { toggleAmenity(customAmenity.trim()); setCustomAmenity('') } }}>
               <Plus size={15} />
             </button>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="label flex items-center gap-1.5"><ThumbsUp size={14} className="text-blue-500" /> {t('locations.pros')}</label>
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {pros.map((p, i) => (
+                <span key={i} className="chip">
+                  {p}
+                  <button type="button" className="ml-1 text-muted hover:text-danger" onClick={() => setPros((s) => s.filter((_, idx) => idx !== i))}><X size={12} /></button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                className="input" placeholder={t('locations.addPro')} value={newPro}
+                onChange={(e) => setNewPro(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && newPro.trim()) { e.preventDefault(); setPros((s) => [...s, newPro.trim()]); setNewPro('') } }}
+              />
+              <button type="button" className="btn-ghost" onClick={() => { if (newPro.trim()) { setPros((s) => [...s, newPro.trim()]); setNewPro('') } }}><Plus size={15} /></button>
+            </div>
+          </div>
+          <div>
+            <label className="label flex items-center gap-1.5"><ThumbsDown size={14} className="text-danger" /> {t('locations.cons')}</label>
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {cons.map((c, i) => (
+                <span key={i} className="chip">
+                  {c}
+                  <button type="button" className="ml-1 text-muted hover:text-danger" onClick={() => setCons((s) => s.filter((_, idx) => idx !== i))}><X size={12} /></button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                className="input" placeholder={t('locations.addCon')} value={newCon}
+                onChange={(e) => setNewCon(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && newCon.trim()) { e.preventDefault(); setCons((s) => [...s, newCon.trim()]); setNewCon('') } }}
+              />
+              <button type="button" className="btn-ghost" onClick={() => { if (newCon.trim()) { setCons((s) => [...s, newCon.trim()]); setNewCon('') } }}><Plus size={15} /></button>
+            </div>
           </div>
         </div>
 

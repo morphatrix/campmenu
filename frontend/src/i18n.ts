@@ -41,6 +41,7 @@ const fr = {
       noVote: 'Pas de vote', promote: 'Désigner gagnant', unpromote: 'Retirer le gagnant', winner: 'Choisi', saveVotes: 'Enregistrer mes votes',
       observation: 'Observations', observationPlaceholder: 'Remarques personnelles…',
       venueInfo: 'Infos du lieu (final)', addCustomAmenity: 'Autre…',
+      pros: 'Points forts', cons: 'Points faibles', addPro: 'Ajouter un point fort', addCon: 'Ajouter un point faible',
     },
     venue: {
       title: 'Infos du lieu', address: 'Adresse', maps: 'Voir sur la carte', phone: 'Téléphone',
@@ -234,6 +235,7 @@ const en = {
       noVote: 'No vote', promote: 'Set as winner', unpromote: 'Remove winner', winner: 'Chosen', saveVotes: 'Save my votes',
       observation: 'Notes', observationPlaceholder: 'Personal remarks…',
       venueInfo: 'Venue info (final)', addCustomAmenity: 'Other…',
+      pros: 'Strengths', cons: 'Weaknesses', addPro: 'Add a strength', addCon: 'Add a weakness',
     },
     venue: {
       title: 'Venue info', address: 'Address', maps: 'View on map', phone: 'Phone',
