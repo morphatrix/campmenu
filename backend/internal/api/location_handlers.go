@@ -112,6 +112,8 @@ func (s *Server) handleListLocations(w http.ResponseWriter, r *http.Request) {
 	for _, v := range votes {
 		if v.Rank >= 1 && v.Rank <= len(weights) {
 			score[v.LocationID] += weights[v.Rank-1]
+		} else if v.Rank == -1 {
+			score[v.LocationID]--
 		}
 		voters[v.LocationID] = append(voters[v.LocationID], voterOut{UserID: v.UserID, Rank: v.Rank})
 		if v.UserID == uid {
@@ -271,7 +273,10 @@ func (s *Server) handleSetVotes(w http.ResponseWriter, r *http.Request) {
 	uid := userIDFrom(r)
 	rows := make([]models.LocationVote, 0, len(req.Votes))
 	for _, v := range req.Votes {
-		if v.Rank < 1 || v.Rank > maxRank || seenRank[v.Rank] || seenLoc[v.LocationID] || v.LocationID == uuid.Nil {
+		// -1 is a veto ("I really don't want to stay here"), not a podium
+		// rank: it doesn't have to respect maxRank.
+		valid := v.Rank == -1 || (v.Rank >= 1 && v.Rank <= maxRank)
+		if !valid || seenRank[v.Rank] || seenLoc[v.LocationID] || v.LocationID == uuid.Nil {
 			continue
 		}
 		seenRank[v.Rank] = true

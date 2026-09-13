@@ -192,7 +192,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                     <label className="ml-auto inline-flex items-center gap-1 text-sm">
                       {t('locations.myVote')}:
                       <select
-                        className="input h-8 w-28 py-1"
+                        className="input h-8 w-32 py-1"
                         value={myRank ?? ''}
                         onChange={(e) => applyVote(loc.id, e.target.value ? +e.target.value : null)}
                       >
@@ -200,6 +200,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                         {weights.map((wgt, i) => (
                           <option key={i} value={i + 1}>{i + 1} (×{wgt})</option>
                         ))}
+                        <option value={-1}>{t('locations.avoidVote')}</option>
                       </select>
                     </label>
                     {canManage && (
