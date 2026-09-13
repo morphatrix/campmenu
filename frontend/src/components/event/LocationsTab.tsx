@@ -93,7 +93,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
             const myRank = rankOf(loc.id)
             return (
               <div key={loc.id} className={`card overflow-hidden ${loc.isWinner ? 'ring-2 ring-success' : ''}`}>
-                {loc.images.length > 0 && (
+                {(loc.images?.length ?? 0) > 0 && (
                   <button type="button" onClick={() => setGallery(loc)} className="relative block w-full">
                     <img src={resolveAsset(loc.images[0])} alt="" className="aspect-[4/3] w-full object-cover" />
                     <span className="absolute left-2 top-2 inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-card/75 px-2 text-xs font-bold backdrop-blur">
@@ -108,7 +108,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                   <div className="mb-2 flex items-start justify-between gap-2">
                     <h3 className="text-lg font-semibold">
                       {loc.isWinner && <Trophy size={16} className="mr-1 inline text-success" />}
-                      {loc.images.length === 0 && `${idx + 1} - `}{loc.title}
+                      {(loc.images?.length ?? 0) === 0 && `${idx + 1} - `}{loc.title}
                     </h3>
                     <span className="chip text-brand">{loc.score} pts</span>
                   </div>
@@ -136,15 +136,15 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                     </div>
                   )}
 
-                  {loc.amenities.length > 0 && (
+                  {(loc.amenities?.length ?? 0) > 0 && (
                     <div className="mb-2 flex flex-wrap gap-1">
                       {loc.amenities.map((a) => <span key={a} className="chip">{a}</span>)}
                     </div>
                   )}
 
-                  {(loc.pros.length > 0 || loc.cons.length > 0) && (
+                  {((loc.pros?.length ?? 0) > 0 || (loc.cons?.length ?? 0) > 0) && (
                     <div className="mb-2 grid gap-2 sm:grid-cols-2">
-                      {loc.pros.length > 0 && (
+                      {(loc.pros?.length ?? 0) > 0 && (
                         <ul className="space-y-0.5">
                           {loc.pros.map((p, i) => (
                             <li key={i} className="flex items-start gap-1.5 text-sm">
@@ -153,7 +153,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                           ))}
                         </ul>
                       )}
-                      {loc.cons.length > 0 && (
+                      {(loc.cons?.length ?? 0) > 0 && (
                         <ul className="space-y-0.5">
                           {loc.cons.map((c, i) => (
                             <li key={i} className="flex items-start gap-1.5 text-sm">

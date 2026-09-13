@@ -47,6 +47,17 @@ func (m JSONStrings) Value() (driver.Value, error) {
 	return json.Marshal(m)
 }
 
+// MarshalJSON guarantees API responses never expose a bare `null` for this
+// type, even when the underlying slice is nil (nullable jsonb column, or a
+// row written before a field existed) — a null here crashes any frontend
+// code that assumes an array (see LocationsTab pros/cons, 2026-09-13).
+func (m JSONStrings) MarshalJSON() ([]byte, error) {
+	if m == nil {
+		return []byte("[]"), nil
+	}
+	return json.Marshal([]string(m))
+}
+
 func (m *JSONStrings) Scan(src any) error {
 	if src == nil {
 		*m = JSONStrings{}
