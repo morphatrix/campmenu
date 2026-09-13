@@ -9,12 +9,16 @@ export default function Modal({
   children,
   wide,
   wider,
+  closeOnBackdrop = true,
 }: {
   title?: string
   onClose: () => void
   children: ReactNode
   wide?: boolean
   wider?: boolean
+  // Set to false for longer forms, where an accidental click just outside the
+  // card would otherwise silently discard everything the user typed.
+  closeOnBackdrop?: boolean
 }) {
   const maxW = wider ? 'max-w-3xl' : wide ? 'max-w-2xl' : 'max-w-md'
   // Scroll lives on the outer container; the inner flex uses min-h-full so the
@@ -24,7 +28,7 @@ export default function Modal({
   // would otherwise become the containing block for this fixed overlay and clip
   // it to the header instead of the viewport.
   return createPortal(
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50" onClick={closeOnBackdrop ? onClose : undefined}>
       <div className="flex min-h-full items-center justify-center p-4">
         <div
           className={`card w-full ${maxW} p-6`}
