@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BedDouble, Bath, ChevronLeft, ChevronRight, Euro, Images, MapPin, ExternalLink, Loader2, Pencil, Plus, Sparkles, Trash2, Trophy, Phone, Vote } from 'lucide-react'
+import { BedDouble, Bath, ChevronLeft, ChevronRight, Euro, Images, MapPin, ExternalLink, Loader2, Pencil, Plus, Sparkles, Star, Trash2, Trophy, Phone, Vote } from 'lucide-react'
 import { api, resolveAsset } from '../../lib/api'
 import { useLive } from '../../context/LiveContext'
 import { useAuth } from '../../context/AuthContext'
@@ -326,6 +326,18 @@ function LocationForm({
     setAmenities((s) => (s.includes(a) ? s.filter((x) => x !== a) : [...s, a]))
   }
   function setImage(i: number, url: string) { setImages((s) => s.map((u, idx) => (idx === i ? url : u))) }
+  // The thumbnail shown on the location card is always images[0] — promote
+  // whichever image the user picks to the front instead of adding a
+  // separate "cover" field.
+  function setCover(i: number) {
+    setImages((s) => {
+      if (i === 0) return s
+      const copy = [...s]
+      const [chosen] = copy.splice(i, 1)
+      copy.unshift(chosen)
+      return copy
+    })
+  }
 
   async function save() {
     if (!f.title.trim()) return
@@ -425,10 +437,22 @@ function LocationForm({
             {images.map((img, i) => (
               <div key={i} className="flex items-start gap-2">
                 <div className="flex-1"><ImageUpload value={img} onChange={(u) => setImage(i, u)} /></div>
+                {img.trim() && (
+                  <button
+                    type="button"
+                    className={`btn-ghost ${i === 0 ? 'text-accent' : ''}`}
+                    disabled={i === 0}
+                    title={i === 0 ? t('locations.isCover') : t('locations.setCover')}
+                    onClick={() => setCover(i)}
+                  >
+                    <Star size={15} fill={i === 0 ? 'currentColor' : 'none'} />
+                  </button>
+                )}
                 <button type="button" className="btn-ghost" onClick={() => setImages((s) => (s.length > 1 ? s.filter((_, idx) => idx !== i) : ['']))}><Trash2 size={15} /></button>
               </div>
             ))}
           </div>
+          {images.filter((u) => u.trim()).length > 1 && <p className="mt-1 text-xs text-muted">{t('locations.coverHint')}</p>}
           <button type="button" className="btn-ghost mt-2" onClick={() => setImages((s) => [...s, ''])}><Plus size={15} /> {t('locations.addImage')}</button>
         </div>
 
