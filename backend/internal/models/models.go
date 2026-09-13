@@ -251,8 +251,8 @@ type Location struct {
 	Description string      `json:"description"`
 	Observation string      `json:"observation"` // free personal remarks
 	Amenities   JSONStrings `gorm:"type:jsonb" json:"amenities"`
-	Pros        JSONStrings `gorm:"type:jsonb" json:"pros"` // strengths (thumbs up)
-	Cons        JSONStrings `gorm:"type:jsonb" json:"cons"` // weaknesses (thumbs down)
+	Pros        JSONStrings `gorm:"type:jsonb;default:'[]'" json:"pros"` // strengths (thumbs up)
+	Cons        JSONStrings `gorm:"type:jsonb;default:'[]'" json:"cons"` // weaknesses (thumbs down)
 	Images      JSONStrings `gorm:"type:jsonb" json:"images"`
 	IsWinner    bool        `json:"isWinner"`
 }
