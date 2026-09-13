@@ -343,7 +343,7 @@ function LocationForm({
   )
 
   return (
-    <Modal title={initial ? t('locations.edit') : t('locations.add')} onClose={onClose} wide closeOnBackdrop={false}>
+    <Modal title={initial ? t('locations.edit') : t('locations.add')} onClose={onClose} wide>
       <div className="space-y-4">
         {aiEnabled && !initial && (
           <div className="rounded-lg border border-dashed border-border p-3">

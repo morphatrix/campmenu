@@ -2,23 +2,22 @@ import { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
-// Simple centered modal with a backdrop. Click outside or the X to close.
+// Simple centered modal with a backdrop. Closes via the X or a form's own
+// cancel button only — not on a backdrop click, which used to silently
+// discard whatever the user had typed on an accidental click just outside
+// the card.
 export default function Modal({
   title,
   onClose,
   children,
   wide,
   wider,
-  closeOnBackdrop = true,
 }: {
   title?: string
   onClose: () => void
   children: ReactNode
   wide?: boolean
   wider?: boolean
-  // Set to false for longer forms, where an accidental click just outside the
-  // card would otherwise silently discard everything the user typed.
-  closeOnBackdrop?: boolean
 }) {
   const maxW = wider ? 'max-w-3xl' : wide ? 'max-w-2xl' : 'max-w-md'
   // Scroll lives on the outer container; the inner flex uses min-h-full so the
@@ -28,12 +27,9 @@ export default function Modal({
   // would otherwise become the containing block for this fixed overlay and clip
   // it to the header instead of the viewport.
   return createPortal(
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50" onClick={closeOnBackdrop ? onClose : undefined}>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50">
       <div className="flex min-h-full items-center justify-center p-4">
-        <div
-          className={`card w-full ${maxW} p-6`}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div className={`card w-full ${maxW} p-6`}>
           <div className="sticky -top-6 z-10 -mx-6 -mt-6 mb-4 flex items-center justify-between border-b border-border bg-card px-6 py-3">
             {title ? <h2 className="text-lg font-semibold">{title}</h2> : <span />}
             <button onClick={onClose} className="text-muted hover:text-fg" aria-label="close">
