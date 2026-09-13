@@ -74,7 +74,7 @@ const fr = {
       fromList: 'Ajouter depuis la liste', addSelection: 'Ajouter la sélection', newArticle: 'Nouvel article',
       noList: 'Onglet non relié à une liste.', allAdded: 'Tous les produits de la liste sont déjà ajoutés.',
       possibleChoices: 'Choix possible', allowCustom: 'Autoriser une valeur libre', custom: 'Libre',
-      backToChoices: 'Revenir aux choix',
+      backToChoices: 'Revenir aux choix', selectAll: 'Tout sélectionner', deselectAll: 'Tout désélectionner',
     },
     lists: {
       title: 'Listes de produits', create: 'Nouvelle liste', name: 'Nom de la liste', rename: 'Renommer',
@@ -266,7 +266,7 @@ const en = {
       fromList: 'Add from list', addSelection: 'Add selection', newArticle: 'New item',
       noList: 'Tab not linked to a list.', allAdded: 'All list products are already added.',
       possibleChoices: 'Possible choices', allowCustom: 'Allow a free value', custom: 'Custom',
-      backToChoices: 'Back to choices',
+      backToChoices: 'Back to choices', selectAll: 'Select all', deselectAll: 'Deselect all',
     },
     lists: {
       title: 'Product lists', create: 'New list', name: 'List name', rename: 'Rename',

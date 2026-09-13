@@ -272,7 +272,15 @@ function AddVotedArticle({ tab, event, existing, onAdded }: { tab: EventTab; eve
     <div className="space-y-4 border-t border-border pt-4">
       {tab.listId && available.length > 0 && (
         <div>
-          <p className="mb-2 text-sm font-medium">{t('matrix.fromList')} · {list?.name}</p>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-sm font-medium">{t('matrix.fromList')} · {list?.name}</p>
+            <button
+              type="button" className="text-xs text-brand hover:underline"
+              onClick={() => setSelected((s) => (s.size === available.length ? new Set() : new Set(available.map((it) => it.id))))}
+            >
+              {selected.size === available.length ? t('matrix.deselectAll') : t('matrix.selectAll')}
+            </button>
+          </div>
           <div className="flex flex-wrap gap-2">
             {available.map((it) => (
               <label key={it.id} className={`chip cursor-pointer ${selected.has(it.id) ? 'bg-brand text-brand-fg' : ''}`}>
