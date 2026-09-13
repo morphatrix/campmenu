@@ -201,7 +201,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                       >
                         <option value="">{t('locations.noVote')}</option>
                         {weights.map((wgt, i) => (
-                          <option key={i} value={i + 1}>{i + 1} (×{wgt})</option>
+                          <option key={i} value={i + 1}>{t('locations.points', { count: wgt })}</option>
                         ))}
                         <option value={-1}>{t('locations.avoidVote')}</option>
                       </select>
