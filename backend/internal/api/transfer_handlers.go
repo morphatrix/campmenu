@@ -216,6 +216,7 @@ type LocationExport struct {
 	Cons        []string `json:"cons"`
 	Images      []string `json:"images"`
 	IsWinner    bool     `json:"isWinner"`
+	Number      int      `json:"number"`
 }
 
 type LocationVoteExport struct {
@@ -493,7 +494,7 @@ func (s *Server) exportEvent(idStr string) (EventExport, error) {
 			Beds: loc.Beds, SingleBeds: loc.SingleBeds, DoubleBeds: loc.DoubleBeds, Toilets: loc.Toilets,
 			Price: loc.Price, Phone: loc.Phone, UsefulInfo: loc.UsefulInfo, Description: loc.Description,
 			Observation: loc.Observation, Amenities: loc.Amenities, Pros: loc.Pros, Cons: loc.Cons,
-			Images: loc.Images, IsWinner: loc.IsWinner,
+			Images: loc.Images, IsWinner: loc.IsWinner, Number: loc.Number,
 		})
 	}
 
@@ -968,7 +969,7 @@ func upsertEvent(tx *gorm.DB, ev EventExport, adminID uuid.UUID) ([]string, erro
 			EventID: event.ID, CreatedBy: adminID, Title: l.Title, Address: l.Address, WebsiteURL: l.WebsiteURL,
 			MapsURL: l.MapsURL, Beds: l.Beds, SingleBeds: l.SingleBeds, DoubleBeds: l.DoubleBeds, Toilets: l.Toilets,
 			Price: l.Price, Phone: l.Phone, UsefulInfo: l.UsefulInfo, Description: l.Description, Observation: l.Observation,
-			Amenities: l.Amenities, Pros: l.Pros, Cons: l.Cons, Images: l.Images, IsWinner: l.IsWinner,
+			Amenities: l.Amenities, Pros: l.Pros, Cons: l.Cons, Images: l.Images, IsWinner: l.IsWinner, Number: l.Number,
 		}
 		if err := tx.Create(&loc).Error; err != nil {
 			return nil, err

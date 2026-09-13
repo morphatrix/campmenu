@@ -255,6 +255,9 @@ type Location struct {
 	Cons        JSONStrings `gorm:"type:jsonb;default:'[]'" json:"cons"` // weaknesses (thumbs down)
 	Images      JSONStrings `gorm:"type:jsonb" json:"images"`
 	IsWinner    bool        `json:"isWinner"`
+	// Number is a stable per-event identifier assigned once at creation — unlike
+	// display order (sorted by score), it never changes as votes come in.
+	Number int `gorm:"default:0" json:"number"`
 }
 
 // LocationVote is one ranked vote (1=best) of a participant for a location.

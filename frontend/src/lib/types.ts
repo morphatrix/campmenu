@@ -149,6 +149,7 @@ export interface Location {
   cons: string[]
   images: string[]
   isWinner: boolean
+  number: number
   score: number
   voters?: { userId: string; rank: number }[]
 }

@@ -171,8 +171,11 @@ func (s *Server) handleCreateLocation(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "intitulé requis")
 		return
 	}
+	var maxNumber int
+	s.DB.Model(&models.Location{}).Where("event_id = ?", eventID).
+		Select("COALESCE(MAX(number),0)").Scan(&maxNumber)
 	loc := models.Location{
-		EventID: eventID, CreatedBy: userIDFrom(r),
+		EventID: eventID, CreatedBy: userIDFrom(r), Number: maxNumber + 1,
 		Title: req.Title, Address: req.Address, WebsiteURL: req.WebsiteURL, MapsURL: req.MapsURL,
 		Beds: req.Beds, SingleBeds: req.SingleBeds, DoubleBeds: req.DoubleBeds, Toilets: req.Toilets,
 		Price: req.Price, Phone: req.Phone, UsefulInfo: req.UsefulInfo, Description: req.Description,
