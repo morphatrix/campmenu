@@ -217,6 +217,9 @@ type LocationExport struct {
 	Images      []string `json:"images"`
 	IsWinner    bool     `json:"isWinner"`
 	Number      int      `json:"number"`
+	Latitude    *float64 `json:"latitude"`
+	Longitude   *float64 `json:"longitude"`
+	Altitude    *float64 `json:"altitude"`
 }
 
 type LocationVoteExport struct {
@@ -495,6 +498,7 @@ func (s *Server) exportEvent(idStr string) (EventExport, error) {
 			Price: loc.Price, Phone: loc.Phone, UsefulInfo: loc.UsefulInfo, Description: loc.Description,
 			Observation: loc.Observation, Amenities: loc.Amenities, Pros: loc.Pros, Cons: loc.Cons,
 			Images: loc.Images, IsWinner: loc.IsWinner, Number: loc.Number,
+			Latitude: loc.Latitude, Longitude: loc.Longitude, Altitude: loc.Altitude,
 		})
 	}
 
@@ -970,6 +974,7 @@ func upsertEvent(tx *gorm.DB, ev EventExport, adminID uuid.UUID) ([]string, erro
 			MapsURL: l.MapsURL, Beds: l.Beds, SingleBeds: l.SingleBeds, DoubleBeds: l.DoubleBeds, Toilets: l.Toilets,
 			Price: l.Price, Phone: l.Phone, UsefulInfo: l.UsefulInfo, Description: l.Description, Observation: l.Observation,
 			Amenities: l.Amenities, Pros: l.Pros, Cons: l.Cons, Images: l.Images, IsWinner: l.IsWinner, Number: l.Number,
+			Latitude: l.Latitude, Longitude: l.Longitude, Altitude: l.Altitude,
 		}
 		if err := tx.Create(&loc).Error; err != nil {
 			return nil, err

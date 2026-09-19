@@ -117,6 +117,14 @@ func (s *Server) Router() http.Handler {
 			r.Get("/tabs/{tabID}/consumption", s.handleGetConsumption)
 			r.Put("/tabs/{tabID}/articles/{articleID}/consumption", s.handleSetConsumption)
 
+			// Map helpers for the location picker (proxied: the frontend's CSP
+			// pins connect-src to 'self', and Nominatim needs a real User-Agent).
+			r.Group(func(r chi.Router) {
+				r.Use(httprate.LimitByIP(60, time.Minute))
+				r.Get("/geo/search", s.handleGeoSearch)
+				r.Get("/geo/elevation", s.handleGeoElevation)
+			})
+
 			// Locations: propose, edit own, vote (podium).
 			r.Get("/events/{eventID}/locations", s.handleListLocations)
 			r.Post("/locations/import", s.handleImportLocation) // AI extraction from a URL

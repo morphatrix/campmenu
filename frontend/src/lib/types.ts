@@ -150,6 +150,9 @@ export interface Location {
   images: string[]
   isWinner: boolean
   number: number
+  latitude?: number | null
+  longitude?: number | null
+  altitude?: number | null
   score: number
   voters?: { userId: string; rank: number }[]
 }

@@ -258,6 +258,12 @@ type Location struct {
 	// Number is a stable per-event identifier assigned once at creation — unlike
 	// display order (sorted by score), it never changes as votes come in.
 	Number int `gorm:"default:0" json:"number"`
+	// Precise map point of the lodging. Nil when nobody placed it yet — hence
+	// pointers rather than 0,0 (a real spot in the Atlantic). Altitude is
+	// resolved from the coordinates at pick time and cached here.
+	Latitude  *float64 `json:"latitude"`
+	Longitude *float64 `json:"longitude"`
+	Altitude  *float64 `json:"altitude"` // metres
 }
 
 // LocationVote is one ranked vote (1=best) of a participant for a location.

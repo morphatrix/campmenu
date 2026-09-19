@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BedDouble, Bath, ChevronLeft, ChevronRight, Euro, Images, MapPin, ExternalLink, Loader2, Pencil, Plus, Sparkles, Star, ThumbsDown, ThumbsUp, Trash2, Trophy, Phone, Vote, X } from 'lucide-react'
+import { BedDouble, Bath, ChevronLeft, ChevronRight, Euro, Images, Map as MapIcon, MapPin, Mountain, ExternalLink, Loader2, Pencil, Plus, Sparkles, Star, ThumbsDown, ThumbsUp, Trash2, Trophy, Phone, Vote, X } from 'lucide-react'
 import { api, resolveAsset } from '../../lib/api'
 import { useLive } from '../../context/LiveContext'
 import { useAuth } from '../../context/AuthContext'
@@ -8,6 +8,8 @@ import { displayName } from '../../lib/types'
 import Modal from '../Modal'
 import Avatar from '../Avatar'
 import ImageUpload from '../ImageUpload'
+const LocationMap = lazy(() => import('../LocationMap'))
+import LocationPointPicker, { LocationPoint } from './LocationPointPicker'
 import type { Event, Location, LocationsResponse, SiteConfig, User } from '../../lib/types'
 
 interface ImportLocationDraft {
@@ -33,6 +35,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
   const [editing, setEditing] = useState<Location | null>(null)
   const [creating, setCreating] = useState(false)
   const [gallery, setGallery] = useState<Location | null>(null)
+  const [mapOf, setMapOf] = useState<Location | null>(null)
 
   async function load() {
     setData(await api.get<LocationsResponse>(`/events/${event.id}/locations`))
@@ -124,6 +127,7 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                     {(loc.singleBeds > 0 || loc.doubleBeds > 0) && <span>{loc.singleBeds} simple / {loc.doubleBeds} double</span>}
                     {loc.toilets > 0 && <span className="inline-flex items-center gap-1"><Bath size={14} /> {loc.toilets}</span>}
                     {loc.phone && <span className="inline-flex items-center gap-1"><Phone size={14} /> {loc.phone}</span>}
+                    {loc.altitude != null && <span className="inline-flex items-center gap-1"><Mountain size={14} /> {loc.altitude} m</span>}
                   </div>
 
                   {loc.price > 0 && (
@@ -192,6 +196,11 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
                         <ExternalLink size={13} /> {t('locations.website')}
                       </a>
                     )}
+                    {loc.latitude != null && loc.longitude != null && (
+                      <button className="btn-ghost text-sm" onClick={() => setMapOf(loc)} title={t('locations.viewOnMap')}>
+                        <MapIcon size={14} /> {t('locations.map')}
+                      </button>
+                    )}
                     <label className="ml-auto inline-flex items-center gap-1 text-sm">
                       {t('locations.myVote')}:
                       <select
@@ -237,6 +246,21 @@ export default function LocationsTab({ event, isAdmin, effectiveParticipants }: 
       )}
 
       {gallery && <GalleryModal images={gallery.images} title={gallery.title} onClose={() => setGallery(null)} />}
+      {mapOf && mapOf.latitude != null && mapOf.longitude != null && (
+        <Modal title={`${mapOf.number} - ${mapOf.title}`} onClose={() => setMapOf(null)} wider>
+          <Suspense fallback={<div className="grid h-[460px] w-full place-items-center rounded-lg border border-border text-muted"><Loader2 size={20} className="animate-spin" /></div>}>
+            <LocationMap value={{ lat: mapOf.latitude, lon: mapOf.longitude }} height={460} />
+          </Suspense>
+          <p className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted">
+            <span className="inline-flex items-center gap-1"><MapPin size={14} className="text-brand" />{mapOf.latitude.toFixed(5)}, {mapOf.longitude.toFixed(5)}</span>
+            {mapOf.altitude != null && <span className="inline-flex items-center gap-1"><Mountain size={14} className="text-brand" />{mapOf.altitude} m</span>}
+            <a className="inline-flex items-center gap-1 text-brand hover:underline"
+               href={`https://www.google.com/maps/search/?api=1&query=${mapOf.latitude},${mapOf.longitude}`} target="_blank" rel="noreferrer">
+              <ExternalLink size={12} /> Google Maps
+            </a>
+          </p>
+        </Modal>
+      )}
     </div>
   )
 }
@@ -296,6 +320,11 @@ function LocationForm({
     observation: initial?.observation ?? '',
   }))
   const [amenities, setAmenities] = useState<string[]>(initial?.amenities ?? [])
+  const [point, setPoint] = useState<LocationPoint | null>(
+    initial?.latitude != null && initial?.longitude != null
+      ? { lat: initial.latitude, lon: initial.longitude, alt: initial.altitude ?? null }
+      : null,
+  )
   const [pros, setPros] = useState<string[]>(initial?.pros ?? [])
   const [cons, setCons] = useState<string[]>(initial?.cons ?? [])
   const [newPro, setNewPro] = useState('')
@@ -372,7 +401,10 @@ function LocationForm({
 
   async function save() {
     if (!f.title.trim()) return
-    const body = { ...f, amenities, pros, cons, images: images.filter((u) => u.trim()) }
+    const body = {
+      ...f, amenities, pros, cons, images: images.filter((u) => u.trim()),
+      latitude: point?.lat ?? null, longitude: point?.lon ?? null, altitude: point?.alt ?? null,
+    }
     if (initial) await api.patch(`/locations/${initial.id}`, body)
     else await api.post(`/events/${eventId}/locations`, body)
     onSaved()
@@ -418,6 +450,8 @@ function LocationForm({
             <input className="input" value={f.address} onChange={(e) => set('address', e.target.value)} />
           </div>
         </div>
+
+        <LocationPointPicker value={point} onChange={setPoint} />
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {num('beds', t('locations.beds'))}
