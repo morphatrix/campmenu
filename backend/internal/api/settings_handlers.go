@@ -1,8 +1,11 @@
 package api
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"net/mail"
 	"strings"
 
 	"github.com/morphatrix/campmenu/internal/ai"
@@ -132,8 +135,9 @@ func (s *Server) handleUpdateDBConfig(w http.ResponseWriter, r *http.Request) {
 
 // ---- SMTP test ----
 
-// handleSendTestEmail sends a test message to the requesting admin's own address
-// using the live SMTP settings. The delivery outcome is returned as 200 + an
+// handleSendTestEmail sends a test message using the live SMTP settings, to the
+// address given in the optional {"to": "..."} body, or to the requesting admin's
+// own address when it is empty. The delivery outcome is returned as 200 + an
 // {ok,error} body on purpose: a real SMTP failure must reach the browser as
 // JSON, but a 5xx would be swapped for an HTML error page by the ingress.
 func (s *Server) handleSendTestEmail(w http.ResponseWriter, r *http.Request) {
@@ -141,17 +145,48 @@ func (s *Server) handleSendTestEmail(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "SMTP non configuré (renseignez l'hôte SMTP puis enregistrez)"})
 		return
 	}
-	var user models.User
-	if err := s.DB.First(&user, "id = ?", userIDFrom(r)).Error; err != nil {
-		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "utilisateur introuvable"})
+	var req struct {
+		To string `json:"to"`
+	}
+	if err := decode(r, &req); err != nil && !errors.Is(err, io.EOF) {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "requête invalide"})
 		return
+	}
+	to, err := testEmailRecipient(req.To)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
+		return
+	}
+	if to == "" {
+		var user models.User
+		if err := s.DB.First(&user, "id = ?", userIDFrom(r)).Error; err != nil {
+			writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": "utilisateur introuvable"})
+			return
+		}
+		to = user.Email
 	}
 	siteName := s.Settings.Get(settings.KeySiteName)
 	subject := fmt.Sprintf("[%s] Email de test", siteName)
 	body := fmt.Sprintf("Ceci est un email de test envoyé depuis %s.\n\nSi vous le recevez, la configuration SMTP fonctionne correctement.\n", siteName)
-	if err := s.Mailer.Send(user.Email, subject, body); err != nil {
+	if err := s.Mailer.Send(to, subject, body); err != nil {
 		writeJSON(w, http.StatusOK, map[string]any{"ok": false, "error": err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "to": user.Email})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "to": to})
+}
+
+// testEmailRecipient validates an admin-supplied test recipient. It returns ""
+// for an empty input (meaning: the admin's own address) and the bare address
+// otherwise; anything that is not exactly one plain address is refused, so no
+// display name or CR/LF can reach the To: header or the RCPT command.
+func testEmailRecipient(raw string) (string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return "", nil
+	}
+	addr, err := mail.ParseAddress(raw)
+	if err != nil || addr.Address != raw || strings.ContainsAny(raw, "\r\n") {
+		return "", errors.New("adresse email invalide")
+	}
+	return addr.Address, nil
 }

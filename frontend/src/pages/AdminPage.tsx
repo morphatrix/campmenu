@@ -350,6 +350,7 @@ function SettingsSection() {
   const [s, setS] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState(false)
   const [testEmail, setTestEmail] = useState<{ state: 'idle' | 'sending' | 'sent' | 'error'; msg?: string }>({ state: 'idle' })
+  const [testEmailTo, setTestEmailTo] = useState('')
   const [aiPrompt, setAiPrompt] = useState('')
   const [aiTest, setAiTest] = useState<{ state: 'idle' | 'testing' | 'done' | 'error'; text?: string }>({ state: 'idle' })
 
@@ -371,7 +372,7 @@ function SettingsSection() {
   async function sendTestEmail() {
     setTestEmail({ state: 'sending' })
     try {
-      const res = await api.post<{ ok: boolean; to?: string; error?: string }>('/settings/test-email')
+      const res = await api.post<{ ok: boolean; to?: string; error?: string }>('/settings/test-email', { to: testEmailTo.trim() })
       if (res.ok) {
         setTestEmail({ state: 'sent', msg: t('settings.testEmailSent', { to: res.to }) })
       } else {
@@ -454,6 +455,12 @@ function SettingsSection() {
       <section className="card p-6">
         <h3 className="mb-4 font-semibold">{t('settings.smtp')}</h3>
         <div className="mb-4 flex flex-wrap items-center gap-3">
+          <input
+            className="input w-full sm:w-72" type="email"
+            placeholder={t('settings.testEmailTo')}
+            value={testEmailTo}
+            onChange={(e) => { setTestEmailTo(e.target.value); setTestEmail({ state: 'idle' }) }}
+          />
           <button className="btn-ghost" onClick={sendTestEmail} disabled={testEmail.state === 'sending'}>
             <Mail size={15} /> {testEmail.state === 'sending' ? t('settings.testEmailSending') : t('settings.testEmail')}
           </button>
